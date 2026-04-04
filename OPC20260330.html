@@ -1,0 +1,2173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OPC厦门·社区门户</title>
+    
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 引入 React 核心库 -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    
+    <!-- 引入 Babel 编译器以在浏览器中解析 JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- 引入 Lucide 图标库 -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; }
+        /* 隐藏滚动条但保留滚动功能 */
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        /* 自定义美化滚动条 */
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* 针对流程图连接线的自定义动画或样式 */
+        .flow-line-h { position: relative; }
+        .flow-line-h::after {
+            content: ''; position: absolute; top: 50%; right: -24px; transform: translateY(-50%);
+            width: 24px; border-top: 2px dashed #93c5fd; z-index: -1;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useCallback, useRef } = React;
+
+        // ==========================================
+        // 动态图标组件 (兼容单文件 HTML 环境)
+        // ==========================================
+        const Icon = ({ name, size = 24, className = '', color = 'currentColor', strokeWidth = 2 }) => {
+            const svgRef = useRef(null);
+            
+            useEffect(() => {
+                if (window.lucide && window.lucide.icons[name] && svgRef.current) {
+                    const iconNode = window.lucide.icons[name];
+                    const tempNode = window.lucide.createElement(iconNode);
+                    svgRef.current.innerHTML = tempNode.innerHTML;
+                    svgRef.current.setAttribute('viewBox', tempNode.getAttribute('viewBox') || '0 0 24 24');
+                }
+            }, [name]);
+
+            return (
+                <svg
+                    ref={svgRef}
+                    xmlns="http://www.w3.org/2000/svg"
+                    width={size}
+                    height={size}
+                    className={className}
+                    stroke={color}
+                    strokeWidth={strokeWidth}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    fill="none"
+                    style={{ display: 'inline-block', flexShrink: 0 }}
+                ></svg>
+            );
+        };
+
+        // ==========================================
+        // 全局数据配置
+        // ==========================================
+        const bannerSlides = [
+          {
+            mainTitle: "数智立信 创见不凡",
+            subTitle: "成为一流的数智产业生态构建者",
+            eventTitle: "AI 黑客松大赛",
+            eventDesc: "48小时极限开发，AIGC与AI Agent双赛道角逐！\n发掘优质项目，搭建“产学研投”融合平台。",
+            action: 'url',
+            url: "https://mp.weixin.qq.com/s/Jk_CpIzU5o99-i3jliTJ0w?scene=1&click_id=1",
+            bgImage: "./7.png"
+          },
+          {
+            mainTitle: "数智立信 创见不凡",
+            subTitle: "成为一流的数智产业生态构建者",
+            eventTitle: "AI 火炬系列活动",
+            eventDesc: "厦门赛博龙虾俱乐部 · 唠嗑局 No.2 期\n聚焦行业前沿探索，激发创业创新灵感。",
+            action: 'url',
+            url: "https://mp.weixin.qq.com/s/F-Ze-sn-3lUxorbJyBm-VQ",
+            bgImage: "./火炬系列.png"
+          },
+          {
+            mainTitle: "数智立信 创见不凡",
+            subTitle: "成为一流的数智产业生态构建者",
+            eventTitle: "厦门OPC社区空间",
+            eventDesc: "提供空间载体、算力支持、财税辅导等全链条赋能\n助力“一人成军、轻量创业”。",
+            action: 'page',
+            page: 'community',
+            bgImage: "./社区.png"
+          },
+        ];
+
+        const newsItems = [
+          { tag: "活动", title: "「爱XIA创AI黑客松」公众活动", date: "2026-03-18", url: "https://mp.weixin.qq.com/s/5ZyyYJ9SxSqmVDk7dPmCAg" },
+          { tag: "活动", title: "AI 火炬系列活动：厦门赛博龙虾俱乐部 · 唠嗑局 No.2 期", date: "2026-03-17", url: "https://mp.weixin.qq.com/s/F-Ze-sn-3lUxorbJyBm-VQ" },
+          { tag: "活动", title: "AI火炬系列活动——厦门首场OpenClaw聚会", date: "2026-03-10", url: "https://mp.weixin.qq.com/s/ixud6hSPtDkp6-MZU2eLXQ" },
+        ];
+
+        const policyItems = [
+          { tag: "政策", title: "厦门市人民政府办公厅关于印发厦门市进一步推动人工智能产业高质量发展若干措施的通知", date: "2026-02-28", url: "https://www.xm.gov.cn/zwgk/flfg/sfbwj/202602/t20260228_2983172.htm?assistant=true" },
+          { tag: "政策", title: "《厦门火炬高新区关于支持人工智能和软件产业发展的若干措施》政策解读", date: "2026-03-02", url: "https://xmtorch.xm.gov.cn/xxgk/zfxxgkml/zcfg/zcjd/202603/t20260302_2983503.html" },
+          { tag: "政策", title: "思明区科技和工信局 思明区财政局关于印发《思明区促进新一代人工智能产业发展若干措施》的通知", date: "2024-12-20", url: "https://www.siming.gov.cn/zfxxgkzl/gbmxxgk/kjhxxhj/zfxxgkml/zcfg/202412/t20241220_1083000.htm" },
+        ];
+
+        const articleItems = [
+          { tag: "文章", title: "涨知识 | 无安全，不“养虾”！", date: "2026-03-20", url: "https://mp.weixin.qq.com/s/W84Q1EOdAvL4psAdKYA4Ew" },
+        ];
+
+        const newsTabs = ["活动通知", "政策文件", "文章信息", "申报通知"];
+
+        const dataLinks = [
+          { title: "厦门城市可信数据空间", url: "https://www.xmdataspace.com/", desc: "立足厦门、面向全国、连接两岸、服务金砖的数据融合开发与流通利用基础设施", isMain: true },
+          { title: "数据资源中心", url: "https://www.xmdataspace.com/portal/dataSource", desc: "点击查看详情" },
+          { title: "模型成果中心", url: "https://www.xmdataspace.com/portal/market", desc: "点击查看详情" },
+          { title: "高质量数据集", url: "https://www.xmdataspace.com/portal/societyMarket", desc: "点击查看详情" },
+        ];
+
+        const services = [
+          { icon: 'FileCheck', title: "OPC开办", desc: "开办指引一站式办理" },
+          { icon: 'Shield', title: "政策匹配", desc: "按身份匹配近似申报H-list政策" },
+          { icon: 'Home', title: "安居落户", desc: "人才安居配套政策信息" },
+          { icon: 'Coins', title: "融资对接", desc: "对接优质投资机构与资金" },
+        ];
+
+        // 新增：场景供需对接 轮播数据
+        const scenarioSlides = [
+          {
+            title: "场景机会",
+            subtitle: "汇聚真实行业需求 · 发掘合作共赢商机",
+            desc: "全面覆盖数字经济、人工智能、智慧物流、全空间无人体系等多元产业领域，提供最前沿的场景开放清单，助力企业快速精准寻找市场契合点。",
+            link: "https://xmcj.ixiamen.org.cn/opportunity",
+            btnText: "探索场景机会",
+            bgFrom: "from-[#0052d9]",
+            bgTo: "to-blue-400"
+          },
+          {
+            title: "场景能力",
+            subtitle: "展示前沿技术方案 · 赋能千行百业升级",
+            desc: "集中展示基于AI大模型、生物技术、清洁能源等前沿科技的场景集成服务能力与解决方案，有效对接优质创新资源，推动新质生产力落地应用。",
+            link: "https://xmcj.ixiamen.org.cn/capability",
+            btnText: "查看场景能力",
+            bgFrom: "from-[#0052d9]",
+            bgTo: "to-cyan-500"
+          },
+          {
+            title: "场景政策",
+            subtitle: "解读权威惠企资讯 · 共享政策扶持红利",
+            desc: "实时汇编国家及地方层面的场景创新培育、低空经济发展、人才招引补贴等利好政策，为您提供一站式权威政策资讯与精准的申报导向指引。",
+            link: "https://xmcj.ixiamen.org.cn/policy",
+            btnText: "了解场景政策",
+            bgFrom: "from-[#0052d9]",
+            bgTo: "to-indigo-500"
+          }
+        ];
+
+        // ==========================================
+        // 公共组件：头部导航栏
+        // ==========================================
+        const GlobalHeader = ({ currentPage, setCurrentPage }) => {
+          const [isLoggedIn, setIsLoggedIn] = useState(true); // 添加登录状态管理，默认为已登录
+
+          const navItems = [
+            { id: 'home', label: '首页' },
+            { id: 'news', label: '最新动态' },
+            { id: 'community', label: '社区简介' },
+            { id: 'services', label: '创业服务' },
+            { id: 'marketplace', label: '资源集市' },
+            { id: 'feedback', label: '意见反馈' },
+          ];
+
+          return (
+            <header className="bg-[#0052d9] text-white h-16 flex items-center shadow-md sticky top-0 z-50">
+              <div className="container mx-auto px-4 flex items-center justify-between h-full">
+                {/* 左上角 Logo 区 */}
+                <div 
+                  className="flex items-center gap-3 sm:gap-4 h-full cursor-pointer hover:opacity-90 transition-opacity" 
+                  onClick={() => { setCurrentPage('home'); window.scrollTo(0, 0); }}
+                >
+                  <img src="./集团横板logo简称-01单色.png" alt="厦门信息集团" className="h-7 sm:h-8 md:h-9 object-contain" />
+                  <div className="w-[1px] h-5 bg-white/40 hidden sm:block"></div>
+                  <div className="text-lg sm:text-xl font-bold tracking-wide">OPC厦门·社区门户</div>
+                </div>
+                
+                <nav className="hidden md:flex gap-8 h-full">
+                  {navItems.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => setCurrentPage(item.id)}
+                      className={`relative h-full px-1 flex items-center text-sm font-medium transition-colors ${
+                        currentPage === item.id ? "text-white" : "text-white/80 hover:text-white"
+                      }`}
+                    >
+                      {item.label}
+                      {currentPage === item.id && (
+                        <span className="absolute bottom-0 left-0 w-full h-[3px] bg-white rounded-t-sm" />
+                      )}
+                    </button>
+                  ))}
+                </nav>
+                
+                {/* 优化后的右上角登录状态及退出交互 */}
+                <div className="flex gap-4 items-center">
+                  {isLoggedIn ? (
+                    <div className="relative group">
+                      <div className="flex items-center gap-2.5 cursor-pointer py-2">
+                        <div className="w-[32px] h-[32px] rounded-full border-2 border-[#3b82f6] flex items-center justify-center text-[#3b82f6]">
+                          <Icon name="User" size={18} strokeWidth={2.5} />
+                        </div>
+                        <span className="text-white text-[15px] font-bold tracking-wide group-hover:text-blue-100 transition-colors">欢迎您，林**</span>
+                      </div>
+                      
+                      {/* 悬浮下拉菜单：退出登录 */}
+                      <div className="absolute top-full right-0 pt-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 min-w-[140px]">
+                        <div className="bg-white rounded-lg shadow-lg border border-gray-100 py-1.5 overflow-hidden">
+                          <div 
+                            className="px-4 py-2.5 text-[14px] text-gray-700 hover:bg-red-50 hover:text-red-500 flex items-center gap-2 cursor-pointer transition-colors"
+                            onClick={() => setIsLoggedIn(false)}
+                          >
+                            <Icon name="LogOut" size={16} />
+                            退出登录
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <a 
+                        href="https://www.ixiamen.org.cn/ids/custom/xiamen/login_xm.jsp"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="border border-white/60 text-white px-5 py-1.5 rounded-full text-sm hover:bg-white/10 transition-colors inline-block"
+                      >
+                        登录
+                      </a>
+                      <a 
+                        href="https://www.ixiamen.org.cn/ids/custom/xiamen/login_xm.jsp"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-[#00d97e] text-white px-5 py-1.5 rounded-full text-sm hover:bg-[#00c271] transition-colors shadow-sm inline-block"
+                      >
+                        注册
+                      </a>
+                    </>
+                  )}
+                </div>
+              </div>
+            </header>
+          );
+        };
+
+        // ==========================================
+        // 页面组件：最新动态
+        // ==========================================
+        const NewsPage = ({ setCurrentPage }) => {
+          const [activeTab, setActiveTab] = useState(0);
+          const [keyword, setKeyword] = useState("");
+
+          const currentItems =
+            activeTab === 0 ? newsItems :
+            activeTab === 1 ? policyItems :
+            activeTab === 2 ? articleItems : [];
+
+          const filteredItems = currentItems.filter(item => 
+            item.title.toLowerCase().includes(keyword.toLowerCase())
+          );
+
+          return (
+            <div className="bg-[#f5f7fa] min-h-screen flex flex-col">
+              <div className="bg-[#eef3fc] py-12 px-4 mb-8">
+                <div className="container mx-auto">
+                  <h1 className="text-[28px] font-bold text-[#0052d9] mb-3">最新动态</h1>
+                  <p className="text-[#0052d9] text-lg">一站掌握人工智能OPC创业动态</p>
+                </div>
+              </div>
+
+              <div className="container mx-auto px-4 flex-1">
+                <div className="flex items-center text-sm mb-6 text-gray-900 gap-2 font-medium">
+                  <button onClick={() => setCurrentPage('home')} className="hover:text-blue-600 transition-colors">首页</button>
+                  <Icon name="ChevronRight" size={16} className="text-gray-500" />
+                  <span className="text-blue-600">最新动态</span>
+                </div>
+
+                <div className="bg-white p-6 rounded-lg mb-6 shadow-sm flex flex-col md:flex-row gap-4">
+                  <input
+                    type="text"
+                    placeholder="请输入关键词进行搜索"
+                    className="border border-gray-300 px-4 py-2.5 flex-1 rounded text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    value={keyword}
+                    onChange={e => setKeyword(e.target.value)}
+                  />
+                  <button className="border border-gray-300 px-10 py-2.5 rounded text-sm hover:bg-gray-50 transition-colors bg-white font-medium">搜索</button>
+                  <button onClick={() => setKeyword("")} className="border border-gray-300 px-10 py-2.5 rounded text-sm hover:bg-gray-50 transition-colors bg-white font-medium">重置</button>
+                </div>
+
+                <div className="bg-white p-6 rounded-lg shadow-sm min-h-[400px]">
+                  <div className="flex gap-10 border-b border-gray-100 mb-6">
+                    {newsTabs.map((tab, i) => (
+                      <button
+                        key={tab}
+                        onClick={() => setActiveTab(i)}
+                        className={`pb-4 text-[15px] font-medium relative transition-colors ${
+                          activeTab === i ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'
+                        }`}
+                      >
+                        {tab}
+                        {activeTab === i && <span className="absolute bottom-0 left-0 w-full h-[3px] bg-blue-600 rounded-t-sm" />}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="space-y-1">
+                    {filteredItems.length > 0 ? filteredItems.map((item, i) => (
+                      <a key={i} href={item.url} target="_blank" rel="noopener noreferrer" className="flex flex-col sm:flex-row justify-between sm:items-center group py-4 hover:bg-gray-50/50 px-2 rounded transition-colors gap-2">
+                        <span className="text-[15px] text-gray-800 group-hover:text-blue-600 transition-colors">
+                          <span className="font-medium mr-1">【{item.tag}】</span> {item.title}
+                        </span>
+                        <span className="text-sm text-gray-500 whitespace-nowrap">{item.date}</span>
+                      </a>
+                    )) : (
+                      <div className="py-16 text-center text-gray-400 text-sm">暂无匹配内容</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <footer className="bg-gray-50 border-t border-gray-200 py-8 mt-16">
+                <div className="container mx-auto px-4 text-center text-gray-500 text-sm">
+                  <p>© 2026 厦门 OPC 社区. All rights reserved.</p>
+                </div>
+              </footer>
+            </div>
+          );
+        };
+
+        // ==========================================
+        // 页面组件：社区简介
+        // ==========================================
+        const CommunityPage = ({ setCurrentPage }) => {
+          return (
+            <div className="bg-[#f5f7fa] min-h-screen flex flex-col">
+              <div className="bg-[#eef3fc] py-12 px-4 mb-8 text-center">
+                <h1 className="text-3xl font-bold text-[#0052d9] mb-6">专业化智创社区</h1>
+                <div className="flex justify-center gap-4">
+                  {['开放共享', '设施齐全', '全链服务'].map(tag => (
+                    <span key={tag} className="bg-gray-200/80 text-gray-700 px-6 py-1.5 rounded-full text-[13px] font-medium">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="container mx-auto px-4 max-w-5xl flex-1">
+                <div className="flex items-center text-sm mb-6 text-gray-900 gap-2 font-medium">
+                  <button onClick={() => setCurrentPage('home')} className="hover:text-[#0052d9] transition-colors">首页</button>
+                  <Icon name="ChevronRight" size={16} className="text-gray-500" />
+                  <span className="text-[#0052d9]">社区简介</span>
+                </div>
+
+                <div className="bg-white p-8 md:p-10 rounded-2xl shadow-sm border border-gray-100 mb-12">
+                  <p className="text-gray-700 leading-loose text-[16px] text-justify">
+                    厦门信息集团OPC社区，立足厦门软件园产业阵地，以 <span className="text-[#0052d9] font-bold text-[17px]">OPC（一人公司 / 开放式合伙协作）</span> 为核心模式，打造面向 <span className="text-[#0052d9] font-bold text-[17px]">AI 时代的超级个体创业共生平台</span>，是集团赋能数字经济、培育新型创业生态的重要载体。社区聚焦 <span className="text-gray-900 font-semibold">数字创意、AIGC、具身智能、电商、新媒体</span> 等领域，为个体创业者、小微团队提供 <span className="text-[#0052d9] font-bold text-[17px]">空间载体、算力支持、工具共享、订单对接、财税服务、投融资对接全链条一站式服务</span>，助力“<span className="text-orange-500 font-black text-[18px]">一人成军、轻量创业</span>”。
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-20">
+                  {[
+                    { value: '300+', label: '入驻团队' },
+                    { value: '5000+', label: '服务人次' },
+                    { value: '2万㎡', label: '社区面积' },
+                    { value: '50+', label: '合作机构' },
+                  ].map(stat => (
+                    <div key={stat.label} className="bg-white text-center py-8 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all group">
+                      <div className="text-[32px] font-black text-[#0052d9] mb-2 group-hover:scale-110 transition-transform origin-bottom">{stat.value}</div>
+                      <div className="text-gray-500 text-sm font-medium">{stat.label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex flex-col md:flex-row gap-10 mb-20 items-center">
+                  <div className="flex-1 text-[#0052d9] flex flex-col items-start">
+                    <h3 className="text-[17px] font-bold mb-8">厦门信息集团OPC社区（软二基地）</h3>
+                    <div className="space-y-3 mb-10 text-[14px]">
+                      <p>地址：厦门软件园二期观日路32号</p>
+                      <p>电话：5953016</p>
+                      <p>邮箱：zhengwenya@xmigc.com</p>
+                    </div>
+                    <button className="bg-gray-300/80 hover:bg-gray-300 text-gray-800 px-10 py-2.5 text-sm font-medium transition-colors rounded-sm shadow-sm">
+                      申请入驻
+                    </button>
+                  </div>
+                  <div className="flex-1 w-full">
+                    <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=800" alt="厦门OPC社区办公环境" className="w-full h-64 object-cover shadow-md rounded-lg" />
+                  </div>
+                </div>
+
+                <div className="flex flex-col md:flex-row-reverse gap-10 mb-20 items-center">
+                  <div className="flex-1 text-[#0052d9] flex flex-col items-start">
+                    <h3 className="text-[17px] font-bold mb-8">厦门信息集团OPC社区（软三基地）</h3>
+                    <div className="space-y-3 mb-10 text-[14px]">
+                      <p>地址：厦门软件园三期F06</p>
+                      <p>电话：5953921</p>
+                      <p>邮箱：chenting@xmigc.com</p>
+                    </div>
+                    <button className="bg-gray-300/80 hover:bg-gray-300 text-gray-800 px-10 py-2.5 text-sm font-medium transition-colors rounded-sm shadow-sm">
+                      申请入驻
+                    </button>
+                  </div>
+                  <div className="flex-1 w-full">
+                    <img src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=800" alt="厦门软件园三期建筑" className="w-full h-64 object-cover shadow-md rounded-lg" />
+                  </div>
+                </div>
+
+                <div className="bg-white p-8 mb-16 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] rounded-xl border border-gray-100">
+                  <h3 className="text-[#0052d9] font-bold text-[15px] mb-4">入驻条件：</h3>
+                  <ul className="text-[#0052d9] space-y-2.5 text-[14px]">
+                    <li>• 个人创业者或不超过3人微型团队</li>
+                    <li>• 从事AI相关领域产品/服务开发</li>
+                    <li>• 持有有效证件完成实名认证</li>
+                    <li>• 通过社区资质审核</li>
+                  </ul>
+                </div>
+
+              </div>
+
+              <footer className="bg-gray-50 border-t border-gray-200 py-8 mt-auto">
+                <div className="container mx-auto px-4 text-center text-gray-500 text-sm">
+                  <p>© 2026 厦门 OPC 社区. All rights reserved.</p>
+                </div>
+              </footer>
+            </div>
+          );
+        }
+
+        // ==========================================
+        // 页面组件：创业服务
+        // ==========================================
+        const ServicesPage = ({ setCurrentPage }) => {
+          const allPolicies = [
+            { id: 1, title: '高校毕业生见习补贴', desc: '为符合条件的应届毕业生提供最高12个月的见习生活及租房补贴。', tags: ['应届毕业生', '开发中'] },
+            { id: 2, title: '高层次人才公积金补贴', desc: '海归及高层次人才购房公积金贷款额度最高可上浮至4倍。', tags: ['海归创业者'] },
+            { id: 3, title: 'AI产业场地租金减免', desc: '针对AI领域初创企业提供最高3年的办公场地租金全额减免。', tags: ['AI从业者', '软件开发'] },
+            { id: 4, title: '电商发展专项扶持基金', desc: '鼓励AI技术在电商领域的应用转化，最高给予50万元启动资金。', tags: ['AI电商', '已注册企业'] },
+            { id: 5, title: '创业第一贴', desc: '首次创办小微企业或从事个体经营的高校毕业生，给予一次性创业补贴。', tags: ['应届毕业生', '已注册企业'] },
+            { id: 6, title: '研发投入奖励补贴', desc: '对软件开发及AI算法模型研发投入费用，给予最高15%的资金奖励。', tags: ['软件开发', 'AI从业者'] },
+          ];
+
+          const [selectedTypes, setSelectedTypes] = useState(['应届毕业生']);
+          const [selectedStages, setSelectedStages] = useState(['AI电商']);
+          const [searchKeyword, setSearchKeyword] = useState('');
+
+          const typeOptions = ['应届毕业生', 'AI从业者', '海归创业者'];
+          const stageOptions = ['AI电商', '软件开发', '开发中', '已注册企业'];
+
+          const toggleFilter = (option, selectedList, setListFn) => {
+            if (selectedList.includes(option)) {
+              setListFn(selectedList.filter(item => item !== option));
+            } else {
+              setListFn([...selectedList, option]);
+            }
+          };
+
+          const resetFilters = () => {
+            setSelectedTypes([]);
+            setSelectedStages([]);
+            setSearchKeyword('');
+          };
+
+          const activeFilters = [...selectedTypes, ...selectedStages];
+          const filteredPolicies = allPolicies.filter(policy => {
+            const matchTag = activeFilters.length === 0 || policy.tags.some(tag => activeFilters.includes(tag));
+            const matchKw = !searchKeyword || policy.title.toLowerCase().includes(searchKeyword.toLowerCase()) || policy.desc.toLowerCase().includes(searchKeyword.toLowerCase());
+            return matchTag && matchKw;
+          });
+
+          return (
+            <div className="bg-[#f5f7fa] min-h-screen flex flex-col">
+              <div className="bg-[#eef3fc] py-14 px-4 mb-8">
+                <div className="container mx-auto">
+                  <h1 className="text-[32px] font-bold text-[#0052d9] mb-3">厦门OPC专属创业政策服务</h1>
+                  <p className="text-[#0052d9] text-lg opacity-90">个性化、精准化匹配</p>
+                </div>
+              </div>
+
+              <div className="container mx-auto px-4 flex-1 mb-16 max-w-7xl">
+                <div className="flex items-center text-[14px] mb-8 text-gray-900 gap-2 font-medium">
+                  <button onClick={() => setCurrentPage('home')} className="hover:text-[#0052d9] transition-colors">首页</button>
+                  <Icon name="ChevronRight" size={16} className="text-gray-400" />
+                  <span className="text-[#0052d9]">创业服务</span>
+                </div>
+
+                {/* 搜索栏 */}
+                <div className="bg-white p-6 rounded-lg mb-8 shadow-sm flex flex-col md:flex-row gap-4 border border-gray-100">
+                  <input
+                    type="text"
+                    placeholder="请输入政策关键字..."
+                    className="border border-gray-300 px-4 py-2.5 flex-1 rounded text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    value={searchKeyword}
+                    onChange={e => setSearchKeyword(e.target.value)}
+                  />
+                  <button className="bg-[#0052d9] text-white px-10 py-2.5 rounded text-sm hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2">
+                    <Icon name="Search" size={16} /> 搜索
+                  </button>
+                  <button onClick={() => setSearchKeyword("")} className="border border-gray-300 px-8 py-2.5 rounded text-sm hover:bg-gray-50 transition-colors bg-white font-medium text-gray-700">重置</button>
+                </div>
+
+                <div className="flex flex-col lg:flex-row gap-6 mb-16">
+                  <div className="w-full lg:w-[280px] shrink-0">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sticky top-24">
+                      <div className="flex items-center gap-2 mb-6 pb-4 border-b border-gray-100">
+                        <Icon name="Filter" size={20} className="text-[#0052d9]" />
+                        <h3 className="text-[17px] font-bold text-gray-900">政策匹配</h3>
+                      </div>
+
+                      <div className="mb-6">
+                        <h4 className="text-[13px] font-bold text-gray-500 mb-3">创业者类型</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {typeOptions.map(option => (
+                            <button
+                              key={option}
+                              onClick={() => toggleFilter(option, selectedTypes, setSelectedTypes)}
+                              className={`px-3 py-1.5 text-[13px] font-medium rounded transition-colors ${
+                                selectedTypes.includes(option)
+                                  ? "bg-[#0052d9] text-white"
+                                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                              }`}
+                            >
+                              {option}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="mb-8">
+                        <h4 className="text-[13px] font-bold text-gray-500 mb-3">创业方向/阶段</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {stageOptions.map(option => (
+                            <button
+                              key={option}
+                              onClick={() => toggleFilter(option, selectedStages, setSelectedStages)}
+                              className={`px-3 py-1.5 text-[13px] font-medium rounded transition-colors ${
+                                selectedStages.includes(option)
+                                  ? "bg-[#0052d9] text-white"
+                                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                              }`}
+                            >
+                              {option}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <button 
+                        onClick={resetFilters}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors text-[13px] font-medium"
+                      >
+                        <Icon name="RefreshCw" size={14} />
+                        重置筛选
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex-1">
+                    <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-5 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <h3 className="text-[18px] font-bold text-gray-900 mb-1">
+                          已为您匹配 <span className="text-[#0052d9] text-[22px] mx-1">{filteredPolicies.length}</span> 项适用政策
+                        </h3>
+                        <p className="text-[13px] text-gray-500">
+                          根据 {activeFilters.length > 0 ? <span className="text-blue-600 font-medium">“{activeFilters.join(' + ')}”</span> : '您的全部条件'} {searchKeyword && <span className="text-blue-600 font-medium">及关键字 “{searchKeyword}”</span>} 推荐
+                        </p>
+                      </div>
+                    </div>
+
+                    {filteredPolicies.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                        {filteredPolicies.map(policy => (
+                          <div key={policy.id} className="bg-white rounded-xl border border-gray-100 p-6 flex flex-col shadow-sm hover:shadow-md transition-all group">
+                            <h4 className="text-[16px] font-bold text-gray-900 mb-3 group-hover:text-[#0052d9] transition-colors">{policy.title}</h4>
+                            <p className="text-[13px] text-gray-500 leading-relaxed mb-5 flex-1 line-clamp-2">{policy.desc}</p>
+                            <div className="flex flex-wrap gap-2 mb-5">
+                              {policy.tags.map(tag => (
+                                <span key={tag} className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-[11px] font-medium">
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                            <button className="text-[13px] text-center w-full py-2 bg-blue-50 text-blue-600 font-medium rounded hover:bg-[#0052d9] hover:text-white transition-colors">
+                              查看详情
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="bg-white rounded-xl border border-gray-100 p-16 text-center shadow-sm">
+                        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
+                          <Icon name="Filter" size={24} />
+                        </div>
+                        <h4 className="text-gray-900 font-bold mb-2">暂无完全匹配的政策</h4>
+                        <p className="text-gray-500 text-[14px]">您可以尝试减少筛选条件或重置筛选。</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-8 border-t border-gray-200">
+                  <div className="flex items-center mb-8">
+                    <span className="w-1.5 h-6 bg-blue-600 rounded-sm mr-3 inline-block" />
+                    <h2 className="text-[20px] font-bold text-gray-900">创业配套服务</h2>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {[
+                      { icon: 'FileCheck', title: "OPC开办", desc: "提供OPC公司注册、税务登记、对公账户开立等一站式开办指引，让轻量创业更简单。" },
+                      { icon: 'Home', title: "安居落户", desc: "整理并对接厦门市各类人才安居、保障性商品房申请及应届生落户配套政策信息。" },
+                      { icon: 'Coins', title: "融资对接", desc: "汇聚海量优质投资机构资源，协助AI及数字经济赛道创业者对接早期天使与VC资金。" }
+                    ].map((svc, index) => (
+                      <div 
+                        key={index} 
+                        onClick={() => { 
+                          let targetPage = 'services';
+                          if (svc.title === 'OPC开办') targetPage = 'opc_registration';
+                          if (svc.title === '融资对接') targetPage = 'financing';
+                          if (svc.title === '安居落户') targetPage = 'housing';
+                          setCurrentPage(targetPage); 
+                          window.scrollTo(0, 0); 
+                        }}
+                        className="bg-white border border-gray-100 rounded-xl p-8 flex flex-col shadow-sm hover:shadow-md hover:border-blue-200 transition-all group cursor-pointer"
+                      >
+                        <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-[#0052d9] group-hover:text-white transition-all shadow-sm">
+                          <Icon name={svc.icon} size={26} />
+                        </div>
+                        <h3 className="text-[18px] font-bold text-gray-900 mb-3">{svc.title}</h3>
+                        <p className="text-[14px] text-gray-500 leading-relaxed mb-8 flex-1">{svc.desc}</p>
+                        <div className="flex items-center justify-between w-full bg-gray-50 text-gray-700 font-medium px-5 py-3 rounded-lg group-hover:bg-[#0052d9] group-hover:text-white transition-colors text-[14px]">
+                          <span>查看详情</span>
+                          <Icon name="ArrowRight" size={16} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+
+              <footer className="bg-gray-50 border-t border-gray-200 py-8 mt-auto">
+                <div className="container mx-auto px-4 text-center text-gray-500 text-sm">
+                  <p>© 2026 厦门 OPC 社区. All rights reserved.</p>
+                </div>
+              </footer>
+            </div>
+          );
+        };
+
+        // ==========================================
+        // 新增页面组件：OPC开办指引 (OpcRegistrationPage)
+        // ==========================================
+        const OpcRegistrationPage = ({ setCurrentPage }) => {
+            return (
+              <div className="bg-[#f5f7fa] min-h-screen flex flex-col">
+                <div className="bg-[#eef3fc] py-14 px-4 mb-8">
+                  <div className="container mx-auto max-w-6xl">
+                    <h1 className="text-[32px] font-bold text-[#0052d9] mb-3">OPC 开办全流程指引</h1>
+                    <p className="text-[#0052d9] text-lg opacity-90">提供企业注册、税务登记、对公账户等一站式开办服务</p>
+                  </div>
+                </div>
+
+                <div className="container mx-auto px-4 flex-1 mb-16 max-w-6xl">
+                  {/* 面包屑 */}
+                  <div className="flex items-center text-[13px] mb-8 text-gray-900 gap-2 font-medium">
+                    <button onClick={() => setCurrentPage('home')} className="hover:text-[#0052d9] transition-colors">首页</button>
+                    <Icon name="ChevronRight" size={14} className="text-gray-400" />
+                    <button onClick={() => setCurrentPage('services')} className="hover:text-[#0052d9] transition-colors">创业服务</button>
+                    <Icon name="ChevronRight" size={14} className="text-gray-400" />
+                    <span className="text-[#0052d9]">OPC开办</span>
+                  </div>
+
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 md:p-12 overflow-x-auto custom-scrollbar">
+                    <h2 className="text-2xl font-bold text-center mb-16 text-gray-800">企业开办服务流程</h2>
+                    
+                    {/* 流程图主容器 */}
+                    <div className="min-w-[950px] flex items-stretch justify-center gap-6 px-4">
+                        
+                        {/* 1. 申请人提出申请 */}
+                        <div className="flex flex-col justify-center">
+                            <div className="bg-[#2b90fa] text-white p-6 rounded-xl shadow-md text-center w-40 relative">
+                                <div className="mx-auto w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mb-3">
+                                    <Icon name="Monitor" size={24} />
+                                </div>
+                                <h3 className="font-bold text-[16px] leading-snug">申请人提出<br/>企业开办申请</h3>
+                            </div>
+                        </div>
+
+                        {/* 连接线 */}
+                        <div className="flex items-center text-[#93c5fd]">
+                            <Icon name="ArrowRight" size={28} />
+                        </div>
+
+                        {/* 2. 申请方式 (一网通 / 专窗) + 上方附加服务 */}
+                        <div className="flex flex-col justify-center gap-4 relative">
+                            {/* 上方：附加服务 */}
+                            <div className="absolute -top-14 left-1/2 -translate-x-1/2 w-52 bg-[#52c1f5] text-white py-3 px-4 rounded-full text-center shadow-sm text-[13px] font-medium flex justify-center items-center gap-1 z-10 hover:shadow-md cursor-pointer transition-shadow">
+                                银行预约开户、用电<br/>报装等延伸服务 
+                                <div className="w-5 h-5 rounded-full border border-white/40 flex items-center justify-center ml-1"><Icon name="ChevronRight" size={14} /></div>
+                            </div>
+                            {/* 向上虚线 */}
+                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-[2px] h-10 border-l-2 border-dashed border-[#93c5fd] z-0"></div>
+
+                            <div className="border-2 border-dashed border-[#a3d4f7] rounded-2xl p-5 bg-blue-50/40 flex flex-col gap-5 w-56 relative mt-6">
+                                <div className="bg-white p-4 rounded-xl shadow-sm border border-blue-100 text-center relative hover:shadow-md transition-shadow cursor-pointer h-[164px] flex flex-col justify-center items-center w-full">
+                                    <Icon name="Monitor" size={32} className="text-[#2b90fa] mb-2" strokeWidth={1.5} />
+                                    <h4 className="font-bold text-[#2b90fa] text-[16px] mb-1.5">“一网通”平台</h4>
+                                    <p className="text-[12px] text-gray-500 leading-snug">全流程网上申请<br/>无需任何纸质材料</p>
+                                    
+                                    {/* 优化后的汇聚连线 */}
+                                    <div className="absolute left-[100%] top-1/2 w-10 border-t-2 border-dashed border-[#93c5fd] z-0 pointer-events-none"></div>
+                                    <div className="absolute left-[calc(100%+38px)] top-1/2 w-[2px] h-[calc(100%+20px)] border-l-2 border-dashed border-[#93c5fd] z-0 pointer-events-none"></div>
+                                    <div className="absolute left-[calc(100%+38px)] top-[calc(100%+10px)] w-6 border-t-2 border-dashed border-[#93c5fd] z-0 pointer-events-none"></div>
+                                    <Icon name="ArrowRight" size={20} strokeWidth={2} className="absolute left-[calc(100%+58px)] top-[calc(100%+10px)] -translate-y-1/2 text-[#93c5fd] z-10 pointer-events-none" />
+                                </div>
+                                <div className="bg-white p-4 rounded-xl shadow-sm border border-blue-100 text-center relative hover:shadow-md transition-shadow cursor-pointer h-[164px] flex flex-col justify-center items-center w-full">
+                                    <div className="w-10 h-10 bg-[#e0f2fe] text-[#2b90fa] rounded flex items-center justify-center mb-2">
+                                        <Icon name="User" size={24} strokeWidth={2} />
+                                    </div>
+                                    <h4 className="font-bold text-[#2b90fa] text-[16px] mb-1.5">开办企业专窗</h4>
+                                    <p className="text-[12px] text-gray-500 leading-snug">提交：企业设立登记<br/>申请材料+发票申领<br/>文书</p>
+                                    
+                                    {/* 向右引出的虚线 */}
+                                    <div className="absolute left-[100%] top-1/2 w-10 border-t-2 border-dashed border-[#93c5fd] z-0 pointer-events-none"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 扩大空白占位为箭头提供呼吸空间 */}
+                        <div className="w-10 shrink-0"></div>
+
+                        {/* 3. 办理事项 (5项) + 上方多证合一 */}
+                        <div className="flex flex-col justify-center gap-3 relative">
+                            {/* 上方：多证合一 */}
+                            <div className="absolute -top-14 left-1/2 -translate-x-1/2 w-[280px] bg-[#52c1f5] text-white py-3 px-4 rounded-full text-center shadow-sm text-[13px] font-medium flex justify-center items-center gap-1 z-10 hover:shadow-md cursor-pointer transition-shadow">
+                                “多证合一”涉企执照事项目录<br/>（三十五证合一） 
+                                <div className="w-5 h-5 rounded-full border border-white/40 flex items-center justify-center ml-1 shrink-0"><Icon name="ChevronRight" size={14} /></div>
+                            </div>
+                            {/* 向上虚线 */}
+                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-[2px] h-10 border-l-2 border-dashed border-[#93c5fd] z-0"></div>
+
+                            {/* 5个流程块 */}
+                            <div className="mt-6 flex flex-col gap-3">
+                              {[
+                                  { title: '企业登记', subtitle: '0.5天内核发营业执照', icon: 'FileText' },
+                                  { title: '申领发票', subtitle: '0.5天内核发并交邮', icon: 'Receipt' },
+                                  { title: '印章刻制', subtitle: null, icon: 'Stamp' },
+                                  { title: '就业登记', subtitle: null, icon: 'Briefcase' },
+                                  { title: '住房公积金企业缴存登记', subtitle: null, icon: 'Building2' }
+                              ].map((item, idx) => (
+                                  <div key={idx} className="bg-[#2b90fa] text-white py-3 px-5 rounded-full shadow-sm flex items-center justify-between w-[260px] hover:bg-[#1a7bed] cursor-pointer transition-colors relative">
+                                      <div className="flex items-center gap-3">
+                                          <div className="bg-white/20 p-1.5 rounded text-white shrink-0"><Icon name={item.icon} size={18} /></div>
+                                          <div className="text-left">
+                                              <div className="font-bold text-[15px] tracking-wide">{item.title}</div>
+                                              {item.subtitle && <div className="text-[11px] opacity-90">{item.subtitle}</div>}
+                                          </div>
+                                      </div>
+                                      <div className="w-5 h-5 rounded-full border border-white/40 flex items-center justify-center shrink-0"><Icon name="ChevronRight" size={14} /></div>
+                                      
+                                      {/* 修复后的连线：1, 2, 3模块汇聚并指向结果框 */}
+                                      {[0, 1, 2].includes(idx) && (
+                                          <div className="absolute left-[100%] top-1/2 w-6 border-t-2 border-dashed border-[#93c5fd] z-0 pointer-events-none"></div>
+                                      )}
+                                      {idx === 0 && (
+                                          <div className="absolute left-[calc(100%+22px)] top-1/2 w-[2px] h-[calc(200%+24px)] border-l-2 border-dashed border-[#93c5fd] z-0 pointer-events-none"></div>
+                                      )}
+                                      {idx === 1 && (
+                                          <>
+                                              <div className="absolute left-[calc(100%+22px)] top-1/2 w-6 border-t-2 border-dashed border-[#93c5fd] z-0 pointer-events-none"></div>
+                                              <Icon name="ArrowRight" size={20} strokeWidth={2} className="absolute left-[calc(100%+40px)] top-1/2 -translate-y-1/2 text-[#93c5fd] z-10 pointer-events-none" />
+                                          </>
+                                      )}
+                                  </div>
+                              ))}
+                            </div>
+                        </div>
+
+                        {/* 4. 最终结果 */}
+                        <div className="flex flex-col justify-center ml-16">
+                            <div className="bg-[#fff8ed] border border-orange-200 text-orange-800 p-8 rounded-2xl shadow-sm text-center w-44 relative">
+                                <div className="mx-auto text-orange-400 mb-3">
+                                    <Icon name="UserCheck" size={42} strokeWidth={1.5} className="mx-auto" />
+                                </div>
+                                <h3 className="font-bold text-[18px] mb-3 text-orange-600">申请人</h3>
+                                <p className="text-[13px] leading-relaxed font-medium opacity-80">无需现场领取<br/>静等执照、发票<br/>邮寄上门</p>
+                            </div>
+                        </div>
+
+                    </div>
+                  </div>
+                </div>
+
+                <footer className="bg-gray-50 border-t border-gray-200 py-8 mt-auto">
+                  <div className="container mx-auto px-4 text-center text-gray-500 text-sm">
+                    <p>© 2026 厦门 OPC 社区. All rights reserved.</p>
+                  </div>
+                </footer>
+              </div>
+            );
+        };
+
+        // ==========================================
+        // 新增页面组件：融资对接 (FinancingPage)
+        // ==========================================
+        const FinancingPage = ({ setCurrentPage }) => {
+            return (
+              <div className="bg-[#f4f7fc] min-h-screen flex flex-col font-sans">
+                {/* 顶部蓝底 Banner */}
+                <div className="bg-gradient-to-r from-[#0052d9] to-[#3b82f6] pt-14 pb-12 px-4 relative overflow-hidden">
+                  {/* 装饰性背景光晕 */}
+                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-32 bg-white/10 blur-[80px] rounded-full pointer-events-none"></div>
+                  
+                  <div className="container mx-auto max-w-6xl relative z-10">
+                    <h1 className="text-[32px] font-bold text-white mb-4 tracking-wide">融资对接</h1>
+                    <p className="text-white/90 text-[15px] font-medium">百亿元“人工智能产业基金群”支持、政策性股权投资、OPC专项信贷产品等</p>
+                  </div>
+                </div>
+
+                {/* 面包屑导航栏 (参考配图的灰色底条) */}
+                <div className="bg-[#eef2f6] border-b border-gray-200 px-4 py-3">
+                  <div className="container mx-auto max-w-6xl flex items-center text-[13px] text-gray-500 gap-2 font-medium">
+                    <Icon name="MapPin" size={14} className="mb-[1px]" />
+                    <button onClick={() => setCurrentPage('home')} className="hover:text-[#0052d9] transition-colors">首页</button>
+                    <Icon name="ChevronRight" size={14} className="text-gray-400" />
+                    <button onClick={() => setCurrentPage('services')} className="hover:text-[#0052d9] transition-colors">创业服务</button>
+                    <Icon name="ChevronRight" size={14} className="text-gray-400" />
+                    <span className="text-gray-800">融资对接</span>
+                  </div>
+                </div>
+
+                {/* 主体内容区 */}
+                <div className="container mx-auto px-4 flex-1 py-10 max-w-6xl">
+                  
+                  {/* 浅蓝色大模块容器 */}
+                  <div className="bg-[#f8fbff] rounded-2xl border border-blue-50 p-8 md:p-10 shadow-sm">
+                    <h2 className="text-[20px] font-bold text-gray-800 mb-4">OPC 产业基金群资金申请</h2>
+                    <p className="text-[14px] text-gray-500 leading-relaxed mb-10 text-justify">
+                      为人工智能创业项目提供强大的资金“后盾”，厦门设立总规模百亿元的人工智能产业基金群，主要面向早期的人工智能技术类项目和数字创意类项目，以“真金白银”帮助 OPC 单人创业者及微型团队走稳轻量创业的“第一步”。
+                    </p>
+
+                    {/* 三个基金卡片网格 */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      
+                      {/* 1. 人工智能产业投资基金 */}
+                      <div className="bg-white rounded-xl p-7 shadow-sm hover:shadow-md transition-shadow border border-transparent hover:border-blue-100 flex flex-col h-full">
+                        <div className="flex items-start gap-4 mb-4">
+                          <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-500 shrink-0 shadow-inner">
+                            <Icon name="Coins" size={28} strokeWidth={1.5} />
+                          </div>
+                          <div>
+                            <h3 className="text-[17px] font-bold text-gray-800 mb-2">人工智能产业投资基金</h3>
+                            <p className="text-[12px] text-gray-500 leading-relaxed">
+                              专项扶持厦门市人工智能领域的初创企业，重点关注AIGC、大模型应用等方向。
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-auto pt-4 pl-[72px]">
+                          <button className="bg-[#2b7cff] hover:bg-[#1d65db] text-white text-[13px] font-medium py-2 px-5 rounded-lg flex items-center justify-center gap-1.5 transition-colors shadow-md shadow-blue-500/20">
+                            立即申请 <Icon name="ArrowRight" size={14} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 2. 新质生产力基金 */}
+                      <div className="bg-white rounded-xl p-7 shadow-sm hover:shadow-md transition-shadow border border-transparent hover:border-blue-100 flex flex-col h-full">
+                        <div className="flex items-start gap-4 mb-4">
+                          <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-500 shrink-0 shadow-inner">
+                            <Icon name="TrendingUp" size={28} strokeWidth={1.5} />
+                          </div>
+                          <div>
+                            <h3 className="text-[17px] font-bold text-gray-800 mb-2">新质生产力基金</h3>
+                            <p className="text-[12px] text-gray-500 leading-relaxed">
+                              针对具身智能、元宇宙等前沿科技行业，重点支持具有核心技术壁垒的创新项目。
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-auto pt-4 pl-[72px]">
+                          <button className="bg-[#2b7cff] hover:bg-[#1d65db] text-white text-[13px] font-medium py-2 px-5 rounded-lg flex items-center justify-center gap-1.5 transition-colors shadow-md shadow-blue-500/20">
+                            立即申请 <Icon name="ArrowRight" size={14} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 3. 滴灌科创基金 */}
+                      <div className="bg-white rounded-xl p-7 shadow-sm hover:shadow-md transition-shadow border border-transparent hover:border-blue-100 flex flex-col h-full">
+                        <div className="flex items-start gap-4 mb-4">
+                          <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-500 shrink-0 shadow-inner">
+                            <Icon name="Droplets" size={28} strokeWidth={1.5} />
+                          </div>
+                          <div>
+                            <h3 className="text-[17px] font-bold text-gray-800 mb-2">滴灌科创基金</h3>
+                            <p className="text-[12px] text-gray-500 leading-relaxed">
+                              支持种子期、初创期微型团队，提供灵活的“滴灌式”小额精准融资服务。
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-auto pt-4 pl-[72px]">
+                          <button className="bg-[#2b7cff] hover:bg-[#1d65db] text-white text-[13px] font-medium py-2 px-5 rounded-lg flex items-center justify-center gap-1.5 transition-colors shadow-md shadow-blue-500/20">
+                            立即申请 <Icon name="ArrowRight" size={14} />
+                          </button>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+
+                </div>
+
+                <footer className="bg-gray-50 border-t border-gray-200 py-8 mt-auto">
+                  <div className="container mx-auto px-4 text-center text-gray-500 text-sm">
+                    <p>© 2026 厦门 OPC 社区. All rights reserved.</p>
+                  </div>
+                </footer>
+              </div>
+            );
+        };
+
+        // ==========================================
+        // 新增页面组件：安居落户 (HousingPage)
+        // ==========================================
+        const HousingPage = ({ setCurrentPage }) => {
+          const housingItems = [
+            { 
+              icon: 'Home', 
+              title: '人才房申请', 
+              desc: '为符合条件的软三园区及重点企业人才提供专属公寓房源，解决住房后顾之忧。', 
+              link: 'https://www.xmsoft.com/pzt/fg/serviceDetail.html?serveCd=FW042&parkCd=02' 
+            },
+            { 
+              icon: 'UserCheck', 
+              title: '高层次人才安居政策', 
+              desc: '针对高层次拔尖人才提供购房补贴、租房补贴等高标准的专属安居保障。', 
+              link: 'https://irencai.xmdjej.gov.cn/zc_view.html?rowId=810156846588362786' 
+            },
+            { 
+              icon: 'Building', 
+              title: '实习求职免费“一张床”', 
+              desc: '为来厦求职、实习的高校毕业生提供免费住宿保障，切实减轻短期居住负担。', 
+              link: 'https://irencai.xmdjej.gov.cn/zc_view.html?rowId=810157347216293927' 
+            },
+            { 
+              icon: 'Ticket', 
+              title: '“五年五折”租房补贴', 
+              desc: '新就业大学生等青年群体可享受租房租金五折优惠补贴，最长可保障五年。', 
+              link: 'https://irencai.xmdjej.gov.cn/zc_view.html?rowId=810157347216293927' 
+            },
+            { 
+              icon: 'Banknote', 
+              title: '人才生活补助', 
+              desc: '为新引进的高学历毕业生、高技能人才等提供专属生活补贴，降低生活成本。', 
+              link: 'https://irencai.xmdjej.gov.cn/zc_view.html?rowId=810157347216293927' 
+            },
+            { 
+              icon: 'Briefcase', 
+              title: '青年创业支持政策', 
+              desc: '为青年创业人才和初创微型团队提供场地租金减免、创业奖励等全方位扶持。', 
+              link: 'https://irencai.xmdjej.gov.cn/zc_view.html?rowId=810157347216293927' 
+            },
+          ];
+
+          return (
+            <div className="bg-[#f4f7fc] min-h-screen flex flex-col font-sans">
+              {/* 顶部蓝底 Banner */}
+              <div className="bg-gradient-to-r from-[#0052d9] to-[#3b82f6] pt-14 pb-12 px-4 relative overflow-hidden">
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-32 bg-white/10 blur-[80px] rounded-full pointer-events-none"></div>
+                <div className="container mx-auto max-w-6xl relative z-10">
+                  <h1 className="text-[32px] font-bold text-white mb-4 tracking-wide">安居落户</h1>
+                  <p className="text-white/90 text-[15px] font-medium">人才就业、安居保障服务事项指引</p>
+                </div>
+              </div>
+
+              {/* 面包屑导航栏 */}
+              <div className="bg-[#eef2f6] border-b border-gray-200 px-4 py-3">
+                <div className="container mx-auto max-w-6xl flex items-center text-[13px] text-gray-500 gap-2 font-medium">
+                  <Icon name="MapPin" size={14} className="mb-[1px]" />
+                  <button onClick={() => setCurrentPage('home')} className="hover:text-[#0052d9] transition-colors">首页</button>
+                  <Icon name="ChevronRight" size={14} className="text-gray-400" />
+                  <button onClick={() => setCurrentPage('services')} className="hover:text-[#0052d9] transition-colors">创业服务</button>
+                  <Icon name="ChevronRight" size={14} className="text-gray-400" />
+                  <span className="text-gray-800">安居落户</span>
+                </div>
+              </div>
+
+              {/* 主体内容区 */}
+              <div className="container mx-auto px-4 flex-1 py-10 max-w-6xl">
+                
+                {/* 浅蓝色大模块容器 */}
+                <div className="bg-[#eef5ff] rounded-2xl p-8 md:p-10 shadow-sm relative mt-8">
+                  {/* 右上角 安居落户主题配图 */}
+                  <div className="absolute -top-12 right-10 w-36 h-36 hidden md:block z-10">
+                    <img 
+                      src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=300" 
+                      alt="" 
+                      className="w-full h-full object-cover rounded-2xl shadow-md border-4 border-white rotate-6 hover:rotate-0 transition-transform duration-500"
+                    />
+                  </div>
+
+                  <div className="mb-8 relative z-20">
+                    <h2 className="text-[18px] font-bold text-[#0052d9] flex items-center gap-3">
+                      智汇厦门 · 安居 OPC
+                      <span className="text-gray-300 font-normal">|</span>
+                      <span className="text-[15px] font-medium text-gray-600">全方位创业人才落户与住房保障</span>
+                    </h2>
+                  </div>
+
+                  {/* 六宫格卡片网格 */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 relative z-20">
+                    {housingItems.map((item, idx) => (
+                      <a key={idx} href={item.link} target="_blank" rel="noopener noreferrer" className="bg-white rounded-xl p-6 flex items-center gap-5 shadow-sm hover:shadow-md transition-shadow group">
+                        <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-500 shrink-0 group-hover:bg-[#0052d9] group-hover:text-white transition-colors">
+                          <Icon name={item.icon} size={22} strokeWidth={1.5} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-[16px] font-bold text-gray-800 mb-1.5 group-hover:text-[#0052d9] transition-colors">{item.title}</h3>
+                          <p className="text-[12px] text-gray-500 leading-relaxed line-clamp-2 pr-2">{item.desc}</p>
+                        </div>
+                        <div className="text-gray-300 group-hover:text-[#0052d9] transition-colors shrink-0">
+                          <Icon name="ArrowRight" size={18} />
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+
+                </div>
+              </div>
+
+              <footer className="bg-gray-50 border-t border-gray-200 py-8 mt-auto">
+                <div className="container mx-auto px-4 text-center text-gray-500 text-sm">
+                  <p>© 2026 厦门 OPC 社区. All rights reserved.</p>
+                </div>
+              </footer>
+            </div>
+          );
+        };
+
+        // ==========================================
+        // 页面组件：资源集市
+        // ==========================================
+        const MarketplacePage = ({ setCurrentPage }) => {
+          const [searchKeyword, setSearchKeyword] = useState('');
+
+          const filterItems = (items) => items.filter(item => {
+            if (!searchKeyword) return true;
+            const kw = searchKeyword.toLowerCase();
+            const textToSearch = (item.title || item.name || item.logoText || "") + " " + (item.desc || item.subText || "");
+            return textToSearch.toLowerCase().includes(kw);
+          });
+
+          // --- 静态数据提取 ---
+          const dataSourcesList = [
+            { title: "厦门网络预约出租汽车车辆运营证核...", desc: "资源摘要：厦门网络预约出租汽车车辆运营证核发（设区的市级权限）信息，包括所有人信息、车辆信息等。", type: "API", owner: "市交通运输局", tag: "交通运输", date: "2025-12-12" },
+            { title: "厦门市运政船舶营运证信息", desc: "资源摘要：厦门市运政船舶营运证信息，包括船舶名称、营运证号等信息。", type: "API", owner: "市交通运输局", tag: "交通运输", date: "2025-12-12" },
+            { title: "厦门市已备案的密室逃脱名录信息", desc: "资源摘要：厦门市已备案的密室逃脱名录信息，包括备案号和单位等信息。", type: "API", owner: "市文化和旅游局", tag: "文化旅游", date: "2025-12-12" }
+          ];
+          const filteredDataSources = filterItems(dataSourcesList);
+
+          const modelsList = [
+            { title: "矿山大模型", desc: "资源摘要：联合矿山大模型数据，通过大模型技术解决复杂的工业场景需求...", tags: ["交通物流"], date: "2026-02-05" },
+            { title: "旅游导润大模型", desc: "资源摘要：整合文旅多维数据集，通过大模型技术赋能旅游智能规划、客服问答...", tags: ["文化旅游"], date: "2026-02-05" },
+            { title: "出行大模型", desc: "资源摘要：结合出行行业多维数据集，通过大模型技术实现智能调度、路径优化...", tags: ["公共服务"], date: "2026-02-05" }
+          ];
+          const filteredModels = filterItems(modelsList);
+
+          const datasetsList = [
+            { title: "文化旅游数据集", desc: "数据摘要：包含厦门市及周边区域的旅游景点信息、历史文化介绍、游客评价等数据...", tags: ["文化旅游"], date: "2026-02-05" },
+            { title: "医学三元结数据集", desc: "数据摘要：整合医疗领域的疾病、症状、药物等实体及其关系，支持构建医疗知识图谱...", tags: ["卫生健康"], date: "2026-02-06" },
+            { title: "供应链标准术语数据集", desc: "数据摘要：核心内容：涵盖国际贸易、物流配送、供应链金融等领域的标准专业术语...", tags: ["商贸流通"], date: "2026-03-19" }
+          ];
+          const filteredDatasets = filterItems(datasetsList);
+
+          const apisList = [
+            { title: "AI视频制作", desc: "支持通过文字描述生成高质量视频画面，为内容创作者提供强大的效率工具支持。", tag: "免费" },
+            { title: "AI图像编辑", desc: "提供图片去水印、智能抠图、画质增强等图像处理API，赋能电商设计与新媒体运营。", tag: "限免" },
+            { title: "AI图像生成", desc: "只需输入Prompt即可生成创意图片，支持多种风格转换，适用于文创设计。", tag: "免费" }
+          ];
+          const filteredApis = filterItems(apisList);
+
+          const mcpsList = [
+            { title: "[定制化]库房盘点", items: ["智能识别货架商品", "自动核对库存数据", "一键生成盘点报告"] },
+            { title: "导购机器人", items: ["7x24小时在线答疑", "个性化商品推荐", "多语言无缝切换"] },
+            { title: "#地址标准化", items: ["不规范地址智能纠错", "行政区划自动补全", "经纬度精准转换"] }
+          ];
+          const filteredMcps = filterItems(mcpsList);
+
+          const toolsList = [
+            { link: "https://www.aiscenes.cn/", logoText: "I SCENE", subText: "MASTER AI场景大屏", desc: "让每个企业都拥有AI数字员工，AI SCENE帮助企业打造一体化智能展示平台，无缝链接各类设备..." },
+            { link: "https://dataarts.juhe.cn/?f=head", logoText: "DataArts", subText: "数据全生命周期敏捷治理平台", desc: "高效服务于数据标准落地，数据质量提升，厘清、盘活数据资产，充分发挥数据价值，提升经营管理水平。" },
+            { link: "https://ecloud.10086.cn/portal/product/elasticsearch", logoText: "Elastic", subText: "Search", desc: "一款基于开源 Elasticsearch、OpenSearch 打造的通用云端检索安全托管服务，支持安全检索、极简查询..." }
+          ];
+          const filteredTools = filterItems(toolsList);
+
+          const gpusList = [
+            { name: "MetaX C550 64GB", price: "4,320" },
+            { name: "Nvidia A800 80GB", price: "55,000" },
+            { name: "Iluvatar BI-V150 64GB", price: "3,960" }
+          ];
+          const filteredGpus = filterItems(gpusList);
+
+          const hasDataSection = filteredDataSources.length > 0 || filteredModels.length > 0 || filteredDatasets.length > 0;
+          const hasToolsSection = filteredApis.length > 0 || filteredMcps.length > 0 || filteredTools.length > 0;
+          const hasComputeSection = filteredGpus.length > 0;
+          const hasAnyResult = hasDataSection || hasToolsSection || hasComputeSection;
+
+
+          const EntryRow = ({ title, desc, icon, link, onClick, buttonText = "查看详情", children }) => (
+            <div className="flex flex-col lg:flex-row gap-6 mb-10">
+              <div className="w-full lg:w-1/4">
+                <div className="bg-gray-100/80 rounded-xl p-6 flex flex-col h-full border border-transparent hover:border-blue-200 hover:shadow-md transition-all group">
+                  <div className="w-12 h-12 bg-gray-900 text-white rounded-xl flex items-center justify-center mb-5 group-hover:bg-blue-600 transition-colors shadow-sm">
+                    <Icon name={icon} size={24} />
+                  </div>
+                  <h4 className="text-[17px] font-bold text-gray-900 mb-3">{title}</h4>
+                  <p className="text-[14px] text-gray-500 flex-1 leading-relaxed mb-6">{desc}</p>
+                  {link ? (
+                    <a href={link} target="_blank" rel="noopener noreferrer" className="bg-gray-900 text-white text-center py-2.5 rounded-lg text-[14px] font-medium hover:bg-blue-600 transition-colors shadow-sm block">
+                      {buttonText}
+                    </a>
+                  ) : onClick ? (
+                    <button onClick={onClick} className="bg-gray-900 text-white text-center py-2.5 rounded-lg text-[14px] font-medium hover:bg-blue-600 transition-colors shadow-sm w-full">
+                      {buttonText}
+                    </button>
+                  ) : (
+                    <button className="bg-gray-900 text-white text-center py-2.5 rounded-lg text-[14px] font-medium hover:bg-blue-600 transition-colors shadow-sm w-full">
+                      {buttonText}
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="w-full lg:w-3/4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {children}
+              </div>
+            </div>
+          );
+
+          const SectionHeader = ({ title, icon }) => (
+            <div className="flex items-center justify-between mb-6 pb-3 border-b border-gray-100">
+              <h3 className="text-[20px] font-bold flex items-center gap-2 text-gray-900">
+                <Icon name={icon} className="text-amber-500" size={24} />
+                {title}
+              </h3>
+              <button className="text-[14px] text-blue-600 font-medium hover:underline">查看更多 &rarr;</button>
+            </div>
+          );
+
+          return (
+            <div className="bg-[#f5f7fa] min-h-screen flex flex-col">
+              <div className="bg-[#eef3fc] py-14 px-4 mb-8">
+                <div className="container mx-auto">
+                  <h1 className="text-[32px] font-bold text-[#0052d9] mb-3">厦门OPC专属资源集市服务</h1>
+                  <p className="text-[#0052d9] text-lg opacity-90">协助创业者快速进行资源检索</p>
+                </div>
+              </div>
+
+              <div className="container mx-auto px-4 flex-1 mb-16 max-w-7xl">
+                <div className="flex items-center text-[14px] mb-8 text-gray-900 gap-2 font-medium">
+                  <button onClick={() => setCurrentPage('home')} className="hover:text-[#0052d9] transition-colors">首页</button>
+                  <Icon name="ChevronRight" size={16} className="text-gray-400" />
+                  <span className="text-[#0052d9]">资源集市</span>
+                </div>
+
+                {/* 搜索栏 */}
+                <div className="bg-white p-6 rounded-lg mb-12 shadow-sm flex flex-col md:flex-row gap-4 border border-gray-100">
+                  <input
+                    type="text"
+                    placeholder="搜索数据、模型、API、工具、算力..."
+                    className="border border-gray-300 px-4 py-2.5 flex-1 rounded text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    value={searchKeyword}
+                    onChange={e => setSearchKeyword(e.target.value)}
+                  />
+                  <button className="bg-[#0052d9] text-white px-10 py-2.5 rounded text-sm hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2">
+                    <Icon name="Search" size={16} /> 搜索
+                  </button>
+                  <button onClick={() => setSearchKeyword("")} className="border border-gray-300 px-8 py-2.5 rounded text-sm hover:bg-gray-50 transition-colors bg-white font-medium text-gray-700">重置</button>
+                </div>
+
+                {/* 搜索结果为空展示 */}
+                {!hasAnyResult && (
+                  <div className="bg-white rounded-xl border border-gray-100 p-20 text-center shadow-sm mb-16">
+                    <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
+                      <Icon name="Search" size={24} />
+                    </div>
+                    <h4 className="text-gray-900 font-bold mb-2">未找到匹配的资源</h4>
+                    <p className="text-gray-500 text-[14px]">请尝试更换关键词搜索，或浏览以下全部分类。</p>
+                  </div>
+                )}
+
+                {hasDataSection && (
+                  <div className="mb-16">
+                    <SectionHeader title="数据" icon="Database" />
+                    
+                    {filteredDataSources.length > 0 && (
+                      <EntryRow 
+                        title="数据资源中心" 
+                        desc="整合多源政务数据、社会数据等资源，提供数据目录浏览、资源申请、数据获取等全流程服务，打破数据孤岛，实现数据要素的高效流通与开发利用。" 
+                        icon="Server" 
+                        link="https://www.xmdataspace.com/portal/dataSource"
+                      >
+                        {filteredDataSources.map(item => (
+                          <a key={item.title} href="https://www.xmdataspace.com/portal/dataSource" target="_blank" rel="noopener noreferrer" className="bg-white rounded-xl overflow-hidden shadow-sm border border-blue-100 hover:shadow-lg hover:-translate-y-1 transition-all flex flex-col block cursor-pointer group relative">
+                            {/* 顶部标题栏 */}
+                            <div className="bg-gradient-to-r from-[#5a80f8] to-[#80a4ff] px-4 py-3">
+                              <h5 className="font-bold text-white text-[14px] truncate">{item.title}</h5>
+                            </div>
+                            {/* 底部装饰水印模拟 */}
+                            <div className="absolute right-0 bottom-10 w-24 h-24 bg-blue-50 rounded-full opacity-50 -mr-4 -mb-4 pointer-events-none"></div>
+                            <Icon name="Box" size={64} className="absolute right-2 bottom-12 text-blue-100 opacity-40 pointer-events-none" />
+                            
+                            {/* 主体内容 */}
+                            <div className="p-4 flex flex-col flex-1 z-10">
+                              <p className="text-[12px] text-gray-600 leading-relaxed mb-4 flex-1">{item.desc}</p>
+                              <div className="space-y-2 mb-2">
+                                <p className="text-[12px] font-bold text-[#0052d9]">资源类型：<span className="font-medium">{item.type}</span></p>
+                                <p className="text-[12px] font-bold text-[#0052d9]">资源持有方：<span className="font-medium text-gray-700">{item.owner}</span></p>
+                              </div>
+                            </div>
+                            
+                            {/* 底部信息栏 */}
+                            <div className="bg-[#6b8cff] text-white px-4 py-2.5 flex justify-between items-center z-10">
+                              <span className="text-[12px] font-medium">{item.tag}</span>
+                              <span className="text-[11px] opacity-90">发布日期: {item.date}</span>
+                            </div>
+                          </a>
+                        ))}
+                      </EntryRow>
+                    )}
+
+                    {filteredModels.length > 0 && (
+                      <EntryRow 
+                        title="模型成果中心" 
+                        desc="汇聚行业领先基础大模型，提供大模型微调、评测、部署等全生命周期服务，降低企业应用门槛，打造智能体生态，赋能千行百业智能化转型。" 
+                        icon="Box" 
+                        link="https://www.xmdataspace.com/portal/market"
+                      >
+                        {filteredModels.map(item => (
+                          <a key={item.title} href="https://www.xmdataspace.com/portal/market" target="_blank" rel="noopener noreferrer" className="bg-gradient-to-br from-[#1a56db] to-[#3f83f8] text-white rounded-xl p-6 flex flex-col h-full shadow-md hover:shadow-lg hover:-translate-y-1 transition-all relative overflow-hidden group block cursor-pointer">
+                            <div className="absolute -right-6 -top-6 text-white/10 group-hover:text-white/20 transition-colors">
+                              <Icon name="Box" size={100} />
+                            </div>
+                            <h5 className="font-bold text-[17px] mb-3 relative z-10">{item.title}</h5>
+                            <p className="text-white/80 text-[13px] line-clamp-3 flex-1 mb-6 leading-relaxed relative z-10">{item.desc}</p>
+                            <div className="relative z-10">
+                              <span className="inline-block bg-white/20 px-3 py-1 rounded text-[11px] font-medium mb-4 backdrop-blur-sm">模型类型：大语言模型</span>
+                              <div className="flex justify-between items-center text-[12px] border-t border-white/20 pt-3 w-full">
+                                <div className="flex items-center gap-1.5 overflow-hidden pr-2">
+                                  <span className="text-white/60 shrink-0">标签:</span>
+                                  <span className="text-white font-medium truncate">{item.tags[0]}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0 text-white/90">
+                                  <span className="text-white/60">发布:</span>
+                                  <span className="font-medium">{item.date}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </a>
+                        ))}
+                      </EntryRow>
+                    )}
+
+                    {filteredDatasets.length > 0 && (
+                      <EntryRow 
+                        title="高质量数据集" 
+                        desc="甄选高质量政务数据、行业公共数据，经过专业清洗、标注与脱敏处理，提供标准一致、标签丰富的高价值数据集，为AI模型训练提供“优质饲料”。" 
+                        icon="Database" 
+                        link="https://www.xmdataspace.com/portal/societyMarket"
+                      >
+                        {filteredDatasets.map(item => (
+                          <a key={item.title} href="https://www.xmdataspace.com/portal/societyMarket" target="_blank" rel="noopener noreferrer" className="bg-gradient-to-br from-[#4f46e5] to-[#6366f1] text-white rounded-xl p-6 flex flex-col h-full shadow-md hover:shadow-lg hover:-translate-y-1 transition-all relative overflow-hidden group block cursor-pointer">
+                            <div className="absolute -right-6 -bottom-6 text-white/10 group-hover:text-white/20 transition-colors">
+                              <Icon name="Database" size={100} />
+                            </div>
+                            <h5 className="font-bold text-[17px] mb-3 relative z-10">{item.title}</h5>
+                            <p className="text-white/80 text-[13px] line-clamp-3 flex-1 mb-6 leading-relaxed relative z-10">{item.desc}</p>
+                            <div className="relative z-10">
+                              <span className="inline-block bg-white/20 px-3 py-1 rounded text-[11px] font-medium mb-4 backdrop-blur-sm">数据类型：文本</span>
+                              <div className="flex justify-between items-center text-[12px] border-t border-white/20 pt-3 w-full">
+                                <div className="flex items-center gap-1.5 overflow-hidden pr-2">
+                                  <span className="text-white/60 shrink-0">标签:</span>
+                                  <span className="text-white font-medium truncate">{item.tags[0]}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0 text-white/90">
+                                  <span className="text-white/60">发布:</span>
+                                  <span className="font-medium">{item.date}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </a>
+                        ))}
+                      </EntryRow>
+                    )}
+                  </div>
+                )}
+
+                {hasToolsSection && (
+                  <div className="mb-16">
+                    <SectionHeader title="工具包" icon="Wrench" />
+                    
+                    {filteredApis.length > 0 && (
+                      <EntryRow 
+                        title="API" 
+                        desc="为 OPC 创业者提供生成服务、金融科技、数据智能等多类接口能力，帮助项目快速接入核心功能，降低开发成本，加速产品落地。" 
+                        icon="Zap" 
+                        buttonText="了解更多"
+                        onClick={() => { setCurrentPage('api_market'); window.scrollTo(0, 0); }}
+                      >
+                        {filteredApis.map(item => (
+                          <div key={item.title} onClick={() => { setCurrentPage('api_market'); window.scrollTo(0, 0); }} className="bg-white border border-gray-100 rounded-xl p-6 flex flex-col h-full shadow-sm hover:shadow-md transition-all group cursor-pointer">
+                            <div className="flex items-center gap-4 mb-4">
+                              <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                <Icon name="Zap" size={20} />
+                              </div>
+                              <h5 className="font-bold text-gray-900 text-[17px]">{item.title}</h5>
+                            </div>
+                            <p className="text-gray-500 text-[13px] line-clamp-2 flex-1 mb-6 leading-relaxed">{item.desc}</p>
+                            <span className="self-start text-[12px] font-bold text-red-500 bg-red-50 border border-red-100 px-3 py-1 rounded shadow-sm">{item.tag}</span>
+                          </div>
+                        ))}
+                      </EntryRow>
+                    )}
+
+                    {filteredMcps.length > 0 && (
+                      <EntryRow 
+                        title="MCP" 
+                        desc="通过标准化连接能力打通工具、数据与模型，让 AI 应用更充分效率同外界资源，提升自动化水平与业务协同效率。" 
+                        icon="LayoutTemplate" 
+                        buttonText="了解更多"
+                        onClick={() => { setCurrentPage('mcp_market'); window.scrollTo(0, 0); }}
+                      >
+                        {filteredMcps.map(item => (
+                          <div key={item.title} onClick={() => { setCurrentPage('mcp_market'); window.scrollTo(0, 0); }} className="bg-white border border-gray-100 rounded-xl p-6 flex flex-col h-full shadow-sm hover:shadow-md hover:border-blue-200 transition-all group cursor-pointer">
+                            <h5 className="font-bold text-gray-900 text-[16px] mb-4 pb-3 border-b border-gray-100">{item.title}</h5>
+                            <ul className="flex-1 space-y-3 mb-6">
+                              {item.items.map(listItem => (
+                                <li key={listItem} className="flex items-start gap-2 text-[13px] text-gray-600 leading-relaxed">
+                                  <Icon name="CheckCircle2" size={16} className="text-emerald-500 shrink-0 mt-0.5" />
+                                  <span>{listItem}</span>
+                                </li>
+                              ))}
+                            </ul>
+                            <div className="w-full text-center text-[14px] font-medium text-gray-700 bg-gray-50 py-2.5 rounded-lg group-hover:bg-gray-200 transition-colors">添加至MCP服务</div>
+                          </div>
+                        ))}
+                      </EntryRow>
+                    )}
+
+                    {filteredTools.length > 0 && (
+                      <EntryRow 
+                        title="产品工具" 
+                        desc="围绕 OPC 创业者在项目启动、产品路线、运营增长、数据分析与支付接入等环节的实际需求，提供一站式工具支持，帮助初创团队高效完成产品搭建与业务增长。" 
+                        icon="Wrench" 
+                        buttonText="了解更多"
+                      >
+                        {filteredTools.map(item => (
+                          <a key={item.logoText} href={item.link} target="_blank" rel="noopener noreferrer" className="bg-white border border-gray-100 rounded-xl p-6 flex flex-col h-full shadow-sm hover:shadow-md transition-all group block cursor-pointer">
+                            <div className="h-16 flex flex-col justify-center mb-4">
+                              <span className="font-black text-[22px] text-blue-800 tracking-wider group-hover:text-blue-600 transition-colors leading-none">{item.logoText}</span>
+                              <span className="text-[10px] text-gray-400 mt-1.5 uppercase tracking-widest font-medium">{item.subText}</span>
+                            </div>
+                            <span className="inline-block bg-[#0052d9] text-white text-[11px] px-2.5 py-1 rounded shadow-sm self-start mb-4">产品</span>
+                            <p className="text-gray-500 text-[13px] line-clamp-3 leading-relaxed">{item.desc}</p>
+                          </a>
+                        ))}
+                      </EntryRow>
+                    )}
+                  </div>
+                )}
+
+                {hasComputeSection && (
+                  <div className="mb-8">
+                    <SectionHeader title="算力" icon="Cpu" />
+                    
+                    <EntryRow 
+                      title="厦门市公共算力服务平台" 
+                      desc="提供优质的算力服务、应用封装、算力闭环等服务，覆盖人工智能产业高质量发展所需，为AI创新提供强大底层支撑。" 
+                      icon="Cpu" 
+                      link="https://www.xmcpsp.com/"
+                    >
+                      {filteredGpus.map(gpu => (
+                        <div key={gpu.name} onClick={() => window.open('https://www.xmcpsp.com/', '_blank')} className="bg-white border border-gray-100 rounded-xl p-6 flex flex-col h-full shadow-sm hover:shadow-lg transition-all group cursor-pointer">
+                          <div className="flex items-start justify-between mb-5">
+                            <span className="text-[16px] font-bold text-gray-800 pr-2 leading-tight">{gpu.name}</span>
+                            <span className="text-[11px] font-bold bg-green-50 text-green-600 border border-green-200 px-2.5 py-1 rounded-full whitespace-nowrap">可租赁</span>
+                          </div>
+                          <div className="text-3xl font-black text-orange-500 mb-8 flex-1">
+                            <span className="text-lg font-bold mr-1">¥</span>{gpu.price}<span className="text-[14px] font-normal text-gray-500 ml-1">/ 月</span>
+                          </div>
+                          <div className="flex gap-3 mt-auto">
+                            <div className="flex-1 text-center text-[13px] font-medium text-blue-600 bg-blue-50 border border-blue-100 rounded-lg py-2 group-hover:bg-[#0052d9] group-hover:text-white transition-colors">立即使用</div>
+                            <div className="flex-1 text-center text-[13px] font-medium text-gray-600 bg-gray-50 rounded-lg py-2 group-hover:bg-gray-200 transition-colors">了解详情</div>
+                          </div>
+                        </div>
+                      ))}
+                    </EntryRow>
+                  </div>
+                )}
+
+              </div>
+
+              <footer className="bg-gray-50 border-t border-gray-200 py-8 mt-auto">
+                <div className="container mx-auto px-4 text-center text-gray-500 text-sm">
+                  <p>© 2026 厦门 OPC 社区. All rights reserved.</p>
+                </div>
+              </footer>
+            </div>
+          );
+        };
+
+        // ==========================================
+        // 页面组件：API 市场
+        // ==========================================
+        const ApiMarketPage = ({ setCurrentPage }) => {
+          const [activeCategory, setActiveCategory] = useState('全部');
+
+          const categories = [
+            '全部', '电子商务', '生活服务', '数据智能'
+          ];
+
+          const apiItems = [
+            // === 原"全部"的内容（保持不变） ===
+            { id: 1, category: '全部', title: '人脸实名认证', desc: '校验姓名、身份证号、人脸图片信息是否一致，进行人脸实名认证。', icon: 'ScanFace', tags: ['付费', '企业专用'] },
+            { id: 2, category: '全部', title: 'AI语音合成TTS API', desc: '提供多种拟人音色，支持多语言及方言，并可在同一音色下输出多语言内容，系统可自适应语气，流畅处理复杂文本。', icon: 'Mic', tags: ['付费'] },
+            { id: 3, category: '全部', title: 'Google Gemini Image API', desc: 'Nano Banana (gemini-2.5-flash-image 和 gemini-3-pro-image-preview图像模型) 是图像生成与编辑的最佳选择...', icon: 'Image', tags: ['付费'] },
+            { id: 4, category: '全部', title: 'AI视频创作', desc: '支持通过自然语言文本智能生成高质量视频，用户只需输入一段描述性文字，即可自动合成画面连贯、风格鲜明、配乐...', icon: 'Video', tags: ['付费'] },
+            { id: 5, category: '全部', title: 'AI图像编辑', desc: '根据文本提示(prompt)和图片公共访问链接，编辑原图按照特定风格、场景和氛围感的输出新的图像。广泛应用于电商...', icon: 'Image', tags: ['付费'] },
+            { id: 6, category: '全部', title: 'AI图像生成', desc: '根据文本提示(prompt)，生成具有特定风格、场景和氛围感的图像。广泛应用于电商营销、广告设计、创意灵感等...', icon: 'Image', tags: ['付费'] },
+            { id: 7, category: '全部', title: '三网手机实名认证[简]', desc: '核验手机运营商三要素（手机号码、姓名、身份证号）信息是否一致。只返回一致或不一致，不返回原因。', icon: 'Smartphone', tags: ['付费', '企业专用', '个人高级认证', '支持MCP'] },
+            { id: 8, category: '全部', title: '身份证实名认证', desc: '核验身份证二要素（姓名和身份证号码）信息是否一致。', icon: 'ScanFace', tags: ['付费', '企业专用', '个人高级认证', '支持MCP'] },
+            { id: 9, category: '全部', title: '短信API服务', desc: '支持三大运营商，虚拟运营商短信发送，电信级运维保障，独享专用通道，3秒可达，99.99%到达率，支持大容量高并发...', icon: 'MessageSquare', tags: ['付费', '企业专用'] },
+            { id: 10, category: '全部', title: 'AI图像理解', desc: '先进的图像理解和分析能力。它能够快速准确地解析和理解图像内容。无论是自然风景、城市建筑还是复杂的场景与活动...', icon: 'Image', tags: ['付费'] },
+            { id: 11, category: '全部', title: 'AI联网搜索', desc: '强大的数据抓取，依托海量的数据，返回内容丰富度高。包含url、网页标题、正文摘要等。在需要时能够实时访问互联网...', icon: 'Search', tags: ['付费'] },
+            { id: 12, category: '全部', title: '银行卡四元素检测[简]', desc: '校验银行卡四要素（姓名、手机号码、身份证号码、银行卡号）信息是否一致，只返回一致或不一致，不返回原因。', icon: 'CreditCard', tags: ['付费', '企业专用'] },
+            { id: 13, category: '全部', title: '银行卡三元素检测[简]', desc: '校验银行卡三要素（姓名、身份证号码、银行卡号）信息是否一致，只返回一致或不一致，不返回原因。', icon: 'CreditCard', tags: ['付费', '企业专用', '支持MCP'] },
+            { id: 14, category: '全部', title: '全国城市空气质量', desc: '全国城市和站点空气质量查询，污染物浓度及空气质量指数、空气质量指数、首要污染物及空气质量级别、健康指引...', icon: 'CloudRain', tags: ['免费', '支持MCP'] },
+            { id: 15, category: '全部', title: '运营商基站信息', desc: '支持全球200多个国家或地区，以及国内三网运营商基站位置信息数据查询。', icon: 'Radio', tags: ['免费'] },
+
+            // === 电子商务 ===
+            { id: 101, category: '电子商务', title: '全球快递物流查询', desc: '支持全球上千家快递公司跟踪服务，包括顺丰、圆通、申通等主流快递公司。自动识别快递公司及单号，服务器毫秒响应...', icon: 'Package', tags: ['低至 ￥0.01/次'] },
+            { id: 102, category: '电子商务', title: '手机号码归属地', desc: '输入手机号查询手机号码归属地、所属号段、手机卡类型、运营商等信息。', icon: 'Smartphone', tags: ['免费', '支持MCP'] },
+            { id: 103, category: '电子商务', title: '二维码生成', desc: '按照设定的参数，生成二维码', icon: 'LayoutTemplate', tags: ['免费'] },
+            { id: 104, category: '电子商务', title: '银行联行号查询', desc: '银行联行号查询，可根据关键字、银行名称、银行卡号、省、市等查询，返回结果包含电话、地址等', icon: 'CreditCard', tags: ['付费', '企业专用'] },
+            { id: 105, category: '电子商务', title: '专利查询', desc: '专利相关信息检索', icon: 'Search', tags: ['付费'] },
+            { id: 106, category: '电子商务', title: '标准中文电码查询', desc: '依托海量标准中文电码数据，快速、精准地提供标准中文电码查询服务。', icon: 'FileText', tags: ['付费'] },
+            { id: 107, category: '电子商务', title: '图书电商数据', desc: '于万千之中选择你所爱--好书推荐，值得你信赖。', icon: 'BookOpen', tags: ['免费'] },
+            { id: 108, category: '电子商务', title: 'Whois实时查询', desc: '通过Whois查询API接口可以查询某域名是否已被注册，还可以根据查询到的信息联系域名的所有者...', icon: 'Globe', tags: ['付费'] },
+
+            // === 生活服务 ===
+            { id: 201, category: '生活服务', title: '短信API服务', desc: '支持三大运营商，虚拟运营商短信发送，电信级运维保障，独享专用通道，3秒可达，99.99%到达率，支持大容量高并发...', icon: 'MessageSquare', tags: ['付费', '企业专用'] },
+            { id: 202, category: '生活服务', title: 'AI联网搜索', desc: '强大的数据积累，依托海量的数据，返回内容丰富度高，包含url、网页标题、正文摘要等，在需要时能够实时访问互联网...', icon: 'Search', tags: ['付费'] },
+            { id: 203, category: '生活服务', title: '台风路径', desc: '查询台风信息和台风路径', icon: 'Wind', tags: ['免费'] },
+            { id: 204, category: '生活服务', title: 'IPv4地址查询-区县级', desc: '支持查询IPv4地址的详细信息，包括国家（地区）、州/省、市、邮编、经纬度地理坐标等信息，可精确至区县级。', icon: 'MapPin', tags: ['付费'] },
+            { id: 205, category: '生活服务', title: 'IPv6地址查询-城市级', desc: '根据查询的IPv6地址，查询该IPv6所属的区域，城市级查询。', icon: 'MapPin', tags: ['付费'] },
+            { id: 206, category: '生活服务', title: '新闻头条', desc: '最新新闻头条，各类国内、国际、体育、娱乐、科技等资讯，更新周期5-30分钟', icon: 'Newspaper', tags: ['免费', '支持MCP'] },
+            { id: 207, category: '生活服务', title: '性格测试', desc: '根据用户填写的心理测试题，经过MBTI理论和指标模型的分析，最终得到人格测试报告。测得的结果仅供参考娱乐。', icon: 'User', tags: ['免费'] },
+            { id: 208, category: '生活服务', title: '历史天气', desc: '提供全国历史天气相关信息查询，包括温度、天气状况风力风向等。支持全国2000多个城市查询。', icon: 'CloudRain', tags: ['付费'] },
+            { id: 209, category: '生活服务', title: '气象预警V2', desc: '查询国家预警信息发布中心发布的气象预警信息，如：台风、暴雨、暴雪、寒潮、大风、沙尘暴、高温、干旱、雷电等预警...', icon: 'CloudSun', tags: ['免费'] },
+            { id: 210, category: '生活服务', title: '国际短信', desc: '支持全球语言，可适应各种业务场景，快速触达全球用户，助力企业海外拓展。覆盖200多个国家和地区，安全稳定，价...', icon: 'MessageSquare', tags: ['付费', '企业专用'] },
+            { id: 211, category: '生活服务', title: '视频短信', desc: '发送视频和图片等彩信信息', icon: 'Video', tags: ['付费', '企业专用'] },
+            { id: 212, category: '生活服务', title: '万年历', desc: '指定日期查询当日的星期、星座、农历、生肖、天干地支、岁次、黄历相关的福神、喜神、宜忌等信息，可以进行阴阳历...', icon: 'CalendarDays', tags: ['免费'] },
+            { id: 213, category: '生活服务', title: '热门视频榜单', desc: '抖音热门视频及搞笑、体育、汽车、美食达人视频榜单。视频播放链接暂只支持手机端浏览器打开访问', icon: 'Video', tags: ['免费'] },
+            { id: 214, category: '生活服务', title: '数独游戏生成器', desc: '数独生成器，一款数独谜题和答案在线生成API。4个难度级别，无限量随机数独谜题生成', icon: 'LayoutTemplate', tags: ['免费'] },
+            { id: 215, category: '生活服务', title: '笑话大全', desc: '搜集网络幽默、搞笑、内涵段子，不间断更新', icon: 'MessageSquare', tags: ['免费'] },
+
+            // === 数据智能 ===
+            { id: 301, category: '数据智能', title: '人脸实名认证', desc: '校验姓名、身份证号、人脸图片信息是否一致，进行人脸实名认证。', icon: 'ScanFace', tags: ['付费', '企业专用'] },
+            { id: 302, category: '数据智能', title: 'AI语音合成TTS API', desc: '提供多种拟人音色，支持多语言及方言，并可在同一音色下输出多语言内容。系统可自适应语气，流畅处理复杂文本。', icon: 'Mic', tags: ['付费'] },
+            { id: 303, category: '数据智能', title: 'Google Gemini Image API', desc: 'Nano Banana (gemini-2.5-flash-image 和 gemini-3-pro-image-preview图像模型) 是图像生成与编辑的最佳选择，...', icon: 'Image', tags: ['付费'] },
+            { id: 304, category: '数据智能', title: 'AI视频创作', desc: '支持通过自然语言文本智能生成高质量视频。用户只需输入一段描述性文字，即可自动合成画面连贯、风格鲜明、配乐...', icon: 'Video', tags: ['付费'] },
+            { id: 305, category: '数据智能', title: 'AI图像编辑', desc: '根据文本提示(prompt)和图片公网访问链接，编辑原图按照特定风格、场景和氛围感的输出新的图像。广泛应用于电商...', icon: 'Image', tags: ['付费'] },
+            { id: 306, category: '数据智能', title: 'AI图像生成', desc: '根据文本提示(prompt)，生成具有特定风格、场景和氛围感的图像。广泛应用于电商营销、广告设计、创意灵感等...', icon: 'Image', tags: ['付费'] },
+            { id: 307, category: '数据智能', title: 'AI图像理解', desc: '先进的图像理解和分析能力，它能够快速准确地解析和理解图像内容。无论是自然风景、城市建筑还是复杂的场景与活动...', icon: 'Image', tags: ['付费'] },
+            { id: 308, category: '数据智能', title: '活体人脸实名认证H5版', desc: '本服务搭载真人检测和人脸比对等生物识别技术，配合权威数据源验证，可快速校验自然人的真实身份。支持PC和移动端...', icon: 'ScanFace', tags: ['付费', '企业专用'] },
+            { id: 309, category: '数据智能', title: '身份证OCR识别', desc: '支持对二代居民身份证正反面的关键字段识别，包括姓名、性别、民族、出生日期、住址、身份证号、签发机关、有效...', icon: 'ScanFace', tags: ['付费', '企业专用'] },
+            { id: 310, category: '数据智能', title: '智能取名', desc: '智能取名，根据性别、姓氏等属性，查找合适的名字。查询仅供娱乐参考。', icon: 'FileText', tags: ['免费', '支持MCP'] },
+            { id: 311, category: '数据智能', title: '语音图像垃圾分类识别', desc: '通过提交语音垃圾名称或上传物品图片自动识别垃圾名称并检索相关联的垃圾分类信息，海量垃圾分类，毫秒级响应。', icon: 'Mic', tags: ['付费'] },
+            { id: 312, category: '数据智能', title: '通用印刷体识别', desc: '本接口支持图像整体文字的检测和识别，返回文字框位置与文字内容。相比通用印刷体识别接口，准确率和召回率更高。', icon: 'Image', tags: ['付费'] },
+            { id: 313, category: '数据智能', title: '银行卡Ocr识别', desc: '支持对主流银行卡的卡号、有效期、发卡行、3个关键字段进行结构化识别，识别准确率超过99%', icon: 'CreditCard', tags: ['付费'] },
+            { id: 314, category: '数据智能', title: '证件识别', desc: '支持身份证、银行卡、驾驶证、营业执照等三十多种证件的OCR识别。', icon: 'ScanFace', tags: ['付费', '企业专用'] },
+            { id: 315, category: '数据智能', title: '名片识别', desc: '通过提交名片图片内容，快速识别姓名、职位、手机、邮箱等名片内容。识别精准，响应速度快，对反光、角度旋转、重...', icon: 'FileText', tags: ['付费'] },
+          ];
+
+          // 筛选当前选择分类下的数据
+          const currentDisplayItems = apiItems.filter(item => item.category === activeCategory);
+
+          const getTagStyle = (tag) => {
+            if (tag.includes('低至') || tag.includes('付费')) return 'text-[#ff5a5f] bg-[#fff0f0] border-[#ff5a5f]/20';
+            if (tag === '免费') return 'text-[#00a870] bg-[#e6f6f0] border-[#00a870]/20';
+            if (tag === '企业专用') return 'text-[#0052d9] bg-[#eef3fc] border-[#0052d9]/20';
+            if (tag === '个人高级认证') return 'text-[#722ed1] bg-[#f9f0ff] border-[#722ed1]/20';
+            if (tag === '支持MCP') return 'text-[#165dff] bg-[#e8f3ff] border-[#165dff]/20';
+            return 'text-gray-600 bg-gray-50 border-gray-200';
+          };
+
+          return (
+            <div className="bg-[#f5f7fa] min-h-screen flex flex-col">
+              <div className="container mx-auto px-4 flex-1 py-10 max-w-[1400px]">
+                <div className="flex items-center text-[13px] mb-8 text-gray-900 gap-2 font-medium">
+                  <button onClick={() => setCurrentPage('home')} className="hover:text-[#0052d9] transition-colors">首页</button>
+                  <Icon name="ChevronRight" size={14} className="text-gray-400" />
+                  <button onClick={() => setCurrentPage('marketplace')} className="hover:text-[#0052d9] transition-colors">资源集市</button>
+                  <Icon name="ChevronRight" size={14} className="text-gray-400" />
+                  <span className="text-[#0052d9]">API服务</span>
+                </div>
+
+                <div className="flex gap-6">
+                  <div className="w-52 shrink-0">
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-2 sticky top-24 overflow-y-auto max-h-[calc(100vh-140px)] custom-scrollbar">
+                      <div className="flex flex-col gap-1">
+                        {categories.map((cat) => (
+                          <button
+                            key={cat}
+                            onClick={() => setActiveCategory(cat)}
+                            className={`text-left px-4 py-3 rounded-md text-[14px] font-medium transition-all ${
+                              activeCategory === cat 
+                                ? "text-[#0052d9] bg-blue-50 relative before:absolute before:left-0 before:top-2.5 before:bottom-2.5 before:w-[3px] before:bg-[#0052d9] before:rounded-r-md" 
+                                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                            }`}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+                      <h2 className="text-[18px] font-bold text-gray-900 pl-3 relative before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[4px] before:bg-[#0052d9] before:rounded-sm">
+                        {activeCategory}
+                      </h2>
+                      <div className="flex items-center gap-6 text-[13px] text-gray-600">
+                        <button className="flex items-center gap-1.5 hover:text-[#0052d9] transition-colors">
+                          排序: 综合 <Icon name="ChevronDown" size={14} />
+                        </button>
+                        <button className="flex items-center gap-1.5 hover:text-[#0052d9] transition-colors">
+                          付费类型: 全部 <Icon name="ChevronDown" size={14} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {currentDisplayItems.map((item) => (
+                        <div key={item.id} className="bg-white border border-gray-100 rounded-lg p-5 hover:shadow-lg transition-all group flex flex-col h-full cursor-pointer hover:border-blue-100">
+                          <div className="flex gap-4 mb-4">
+                            <div className="w-[42px] h-[42px] rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 text-gray-400 group-hover:text-[#0052d9] group-hover:bg-blue-50 group-hover:border-blue-100 transition-colors">
+                              <Icon name={item.icon} size={20} strokeWidth={1.5} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-[15px] font-bold text-gray-900 mb-1.5 group-hover:text-[#0052d9] transition-colors truncate">{item.title}</h3>
+                              <p className="text-[12px] text-gray-500 line-clamp-2 leading-relaxed">{item.desc}</p>
+                            </div>
+                          </div>
+                          <div className="mt-auto pt-4 flex flex-wrap gap-2">
+                            {item.tags.map(tag => (
+                              <span key={tag} className={`text-[10px] font-medium px-2 py-0.5 rounded border ${getTagStyle(tag)}`}>
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="text-center mt-10">
+                      <span className="text-[13px] text-gray-400">没有更多内容了</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <footer className="bg-gray-50 border-t border-gray-200 py-8 mt-auto">
+                <div className="container mx-auto px-4 text-center text-gray-500 text-sm">
+                  <p>© 2026 厦门 OPC 社区. All rights reserved.</p>
+                </div>
+              </footer>
+            </div>
+          );
+        };
+
+        // ==========================================
+        // 页面组件：MCP 市场
+        // ==========================================
+        const McpMarketPage = ({ setCurrentPage }) => {
+          const mcpItems = [
+            { id: 1, title: '[限免]火车查询订票', desc: '一个提供火车票和高铁票的查询服务。查询火车票和高铁票的车次，票价以及票数余额。', icon: 'Train', tags: ['query_train_tickets', 'book_train_ticket', 'pay_train_ticket'] },
+            { id: 2, title: '手机归属地查询', desc: '一个提供查询手机号码归属地、所属号段、手机卡类型、运营商等信息的MCP服务。', icon: 'Smartphone', tags: ['get_mobile_location'] },
+            { id: 3, title: 'IP地址归属地', desc: '一个提供IPv4地址归属地信息查询的MCP服务。', icon: 'MapPin', tags: ['get_ipv4_location'] },
+            { id: 4, title: '全球快递物流', desc: '一个提供全球快递物流状态信息查询的MCP服务。', icon: 'Package', tags: ['get_express_info'] },
+            { id: 5, title: '全国天气预报', desc: '一个提供全国城市、地区、区县实时天气预报情况的MCP服务。', icon: 'CloudSun', tags: ['get_weather'] },
+            { id: 6, title: '实时汇率查询', desc: '一个提供全球货币之间汇率查询的MCP服务。', icon: 'Banknote', tags: ['get_exchange_rate'] },
+            { id: 7, title: '今日头条新闻', desc: '一个提供新闻头条信息查询功能的服务。该服务使大型语言模型能够获取当前最新的资讯...', icon: 'Newspaper', tags: ['get_news_list', 'get_news_content'] },
+            { id: 8, title: '今日全国油价', desc: '一个提供今日全国油价查询功能的MCP服务。', icon: 'Fuel', tags: ['get_oil_price'] },
+            { id: 9, title: '星座运势', desc: '一个提供星座今日、明日、本周、本年运势查询功能的MCP服务。', icon: 'Star', tags: ['get_horoscope'] },
+            { id: 10, title: '全国空气质量', desc: '一个提供全国300多个城市的实时空气质量查询功能的MCP服务。', icon: 'Wind', tags: ['get_air_quality'] },
+            { id: 11, title: '老黄历', desc: '一个提供老黄历信息查询的MCP服务。', icon: 'CalendarDays', tags: ['get_almanac'] },
+            { id: 12, title: 'NBA赛程', desc: '一个提供NBA近期赛程和比分结果查询的MCP服务。', icon: 'Dribbble', tags: ['get_nba_schedule'] },
+          ];
+
+          return (
+            <div className="bg-[#f5f7fa] min-h-screen flex flex-col">
+              <div className="container mx-auto px-4 flex-1 py-10 max-w-[1400px]">
+                <div className="flex items-center text-[13px] mb-8 text-gray-900 gap-2 font-medium">
+                  <button onClick={() => setCurrentPage('home')} className="hover:text-[#0052d9] transition-colors">首页</button>
+                  <Icon name="ChevronRight" size={14} className="text-gray-400" />
+                  <button onClick={() => setCurrentPage('marketplace')} className="hover:text-[#0052d9] transition-colors">资源集市</button>
+                  <Icon name="ChevronRight" size={14} className="text-gray-400" />
+                  <span className="text-[#0052d9]">MCP服务</span>
+                </div>
+
+                <div className="mb-8 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-[24px] font-bold text-gray-900 mb-2">MCP 标准连接服务</h2>
+                    <p className="text-[14px] text-gray-500">通过标准化连接能力打通工具、数据与模型，让 AI 应用更充分地协同外界资源。</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                  {mcpItems.map(item => (
+                    <div key={item.id} className="bg-white border border-gray-100 rounded-xl p-6 hover:shadow-lg transition-all group flex flex-col h-full hover:border-blue-100">
+                      <div className="flex gap-4 mb-4">
+                        <div className="w-[42px] h-[42px] rounded-full flex items-center justify-center shrink-0 text-[#0052d9] bg-blue-50 border border-blue-100/50">
+                          <Icon name={item.icon} size={22} strokeWidth={1.5} />
+                        </div>
+                        <div className="flex-1 min-w-0 flex flex-col justify-center gap-1.5">
+                          <h3 className="text-[15px] font-bold text-gray-900 truncate">{item.title}</h3>
+                          <span className="inline-flex items-center gap-1.5 text-[11px] bg-gray-50 text-gray-500 px-2 py-0.5 rounded w-max border border-gray-100">
+                            <span className="w-1.5 h-1.5 rounded-full bg-gray-300"></span>
+                            未开通
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-[13px] text-gray-600 line-clamp-3 mb-5 leading-relaxed flex-1">
+                        {item.desc}
+                      </p>
+                      <div className="flex flex-wrap gap-2 mb-6">
+                        {item.tags.map(tag => (
+                          <span key={tag} className="flex items-center gap-1 bg-white border border-gray-200 text-gray-500 px-2 py-1 rounded text-[11px] whitespace-nowrap">
+                            <Icon name="Check" size={12} className="text-gray-400" />
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                      <button className="w-full bg-gray-50 border border-gray-100 text-gray-400 font-medium py-2.5 rounded-lg text-[13px] hover:bg-gray-100 transition-colors cursor-not-allowed">
+                        请先创建MCP服务
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <footer className="bg-gray-50 border-t border-gray-200 py-8 mt-auto">
+                <div className="container mx-auto px-4 text-center text-gray-500 text-sm">
+                  <p>© 2026 厦门 OPC 社区. All rights reserved.</p>
+                </div>
+              </footer>
+            </div>
+          );
+        };
+
+        // ==========================================
+        // 页面组件：意见反馈
+        // ==========================================
+        const FeedbackPage = ({ setCurrentPage }) => {
+          const [formData, setFormData] = useState({ subject: "", content: "", phone: "" });
+
+          const handleSubmit = (e) => {
+            e.preventDefault();
+            alert("反馈提交成功！我们会尽快处理。");
+          };
+
+          return (
+            <div className="bg-[#f5f7fa] min-h-screen flex flex-col">
+              <div className="bg-[#eef3fc] py-12 px-4 mb-8">
+                <div className="container mx-auto max-w-4xl">
+                  <h1 className="text-[28px] md:text-[32px] font-bold text-[#0052d9] mb-3">意见反馈</h1>
+                  <p className="text-[#0052d9] text-lg opacity-90">倾听您的心声，共建优质社区生态</p>
+                </div>
+              </div>
+
+              <div className="container mx-auto px-4 flex-1 mb-16 max-w-4xl">
+                <div className="flex items-center text-[14px] mb-8 text-gray-900 gap-2 font-medium">
+                  <button onClick={() => setCurrentPage('home')} className="hover:text-[#0052d9] transition-colors">首页</button>
+                  <Icon name="ChevronRight" size={16} className="text-gray-400" />
+                  <span className="text-[#0052d9]">意见反馈</span>
+                </div>
+
+                <h2 className="text-[22px] font-bold mb-6 flex items-center text-gray-900">
+                  <span className="w-1.5 h-6 bg-[#0052d9] rounded-sm mr-3 inline-block" />
+                  问题与建议
+                </h2>
+
+                <div className="bg-white border border-gray-200 rounded-xl p-6 md:p-8 shadow-sm">
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                    <div>
+                      <label className="block text-[14px] font-bold text-gray-700 mb-2">
+                        主题 <span className="text-red-500 ml-1">*</span>
+                      </label>
+                      <input type="text" placeholder="请输入反馈主题（20字以内）" maxLength={20} className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-[14px] focus:ring-2 focus:ring-blue-100 focus:border-[#0052d9] outline-none transition-all placeholder:text-gray-400" value={formData.subject} onChange={(e) => setFormData({...formData, subject: e.target.value})} />
+                    </div>
+                    <div>
+                      <label className="block text-[14px] font-bold text-gray-700 mb-2">
+                        反馈内容 <span className="text-red-500 ml-1">*</span>
+                      </label>
+                      <textarea placeholder="请详细描述您的意见、建议或投诉内容..." rows={5} className="w-full border border-gray-300 rounded-lg px-4 py-3 text-[14px] focus:ring-2 focus:ring-blue-100 focus:border-[#0052d9] outline-none transition-all placeholder:text-gray-400 resize-y" value={formData.content} onChange={(e) => setFormData({...formData, content: e.target.value})} />
+                    </div>
+                    <div>
+                      <label className="block text-[14px] font-bold text-gray-700 mb-2">
+                        联系电话 <span className="text-red-500 ml-1">*</span>
+                      </label>
+                      <input type="tel" placeholder="请输入您的联系电话" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-[14px] focus:ring-2 focus:ring-blue-100 focus:border-[#0052d9] outline-none transition-all placeholder:text-gray-400" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} />
+                    </div>
+                    <div>
+                      <label className="block text-[14px] font-bold text-gray-700 mb-2">
+                        上传附件 <span className="text-gray-400 font-normal ml-1">（可选）</span>
+                      </label>
+                      <div className="border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-blue-50/50 hover:border-blue-300 cursor-pointer rounded-lg flex flex-col items-center justify-center py-10 transition-colors">
+                        <div className="flex items-center gap-2 text-gray-500">
+                          <Icon name="Paperclip" size={18} />
+                          <span className="text-[14px]">点击或拖拽上传文件（支持JPG/PNG/PDF，最大10MB）</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="pt-2">
+                      <button type="submit" className="px-8 py-2.5 rounded-lg text-[14px] font-medium transition-all shadow-sm bg-[#0052d9] text-white hover:bg-blue-700 hover:shadow-md">
+                        提交反馈
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+
+              <footer className="bg-gray-50 border-t border-gray-200 py-8 mt-auto">
+                <div className="container mx-auto px-4 text-center text-gray-500 text-sm">
+                  <p>© 2026 厦门 OPC 社区. All rights reserved.</p>
+                </div>
+              </footer>
+            </div>
+          );
+        };
+
+        // ==========================================
+        // 主应用 / 页面路由 (HomeView内联展开)
+        // ==========================================
+        const App = () => {
+          const [currentPage, setCurrentPage] = useState('home');
+          const [currentSlide, setCurrentSlide] = useState(0);
+          const [activeNewsTab, setActiveNewsTab] = useState(0);
+          const [scenarioSlide, setScenarioSlide] = useState(0);
+
+          const nextSlide = useCallback(() => {
+            setCurrentSlide((prev) => (prev + 1) % bannerSlides.length);
+          }, []);
+
+          useEffect(() => {
+            // 【已优化】将轮播停留时间缩短为 4 秒，提升内容切换的效率
+            const timer = setInterval(nextSlide, 4000);
+            return () => clearInterval(timer);
+          }, [nextSlide]);
+
+          // 新增场景轮播自动切换逻辑
+          useEffect(() => {
+            const scenarioTimer = setInterval(() => {
+              setScenarioSlide((prev) => (prev + 1) % scenarioSlides.length);
+            }, 5000);
+            return () => clearInterval(scenarioTimer);
+          }, []);
+
+          const handleBannerClick = (slide) => {
+            if (slide.action === 'url' && slide.url) {
+              window.open(slide.url, '_blank', 'noopener,noreferrer');
+            } else if (slide.action === 'page' && slide.page) {
+              setCurrentPage(slide.page);
+              window.scrollTo(0, 0);
+            }
+          };
+
+          const currentTabItems = activeNewsTab === 0 ? newsItems : 
+                                  activeNewsTab === 1 ? policyItems : 
+                                  activeNewsTab === 2 ? articleItems : [];
+
+          return (
+            <div className="font-sans text-gray-900 bg-white">
+              <GlobalHeader currentPage={currentPage} setCurrentPage={setCurrentPage} />
+              
+              {/* Home 页面代码内联直接使用 App 的 State 以防止卸载状态丢失 */}
+              {currentPage === 'home' && (
+                <div className="min-h-screen font-sans text-gray-900 bg-white">
+                  <section 
+                    className={`bg-[#0052d9] text-white py-16 md:py-28 px-0 relative overflow-hidden transition-all duration-1000 ${bannerSlides[currentSlide].action ? 'cursor-pointer' : ''}`}
+                    onClick={(e) => {
+                      if (e.target.closest('button')) return;
+                      handleBannerClick(bannerSlides[currentSlide]);
+                    }}
+                  >
+                    {/* 【已优化】配合较短的 4s 停留时间，将背景透明度渐变缩短至 1000ms */}
+                    {bannerSlides.map((slide, i) => (
+                      <div
+                        key={i}
+                        className={`absolute inset-0 w-full h-full overflow-hidden transition-opacity duration-1000 ease-in-out ${
+                          i === currentSlide ? "opacity-100 z-0" : "opacity-0 pointer-events-none -z-10"
+                        }`}
+                      >
+                        <div 
+                          className={`w-full h-full bg-cover bg-center bg-no-repeat transition-transform duration-[8000ms] ease-out ${
+                            i === currentSlide ? "scale-105" : "scale-100"
+                          }`}
+                          style={{ backgroundImage: `url(${slide.bgImage})` }}
+                        />
+                      </div>
+                    ))}
+
+                    {/* 深色渐变遮罩，保护左侧白色文字的可读性 */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-[#0052d9]/95 via-[#0052d9]/70 to-transparent w-full md:w-[80%] z-0 pointer-events-none"></div>
+
+                    {/* 使用与头部导航完全一致的容器限制，确保完美左对齐 */}
+                    <div className="container mx-auto px-4 flex flex-col items-start justify-center text-left relative z-10 min-h-[280px]">
+                      
+                      {/* 动态切换内容 */}
+                      <div className="relative h-[220px] md:h-[260px] w-full flex flex-col items-start justify-center">
+                        {bannerSlides.map((slide, i) => (
+                          <div
+                            key={i}
+                            // 【已优化】配合较短的 4s 停留时间，将文字浮现时间缩短至 700ms，显得更干脆利落
+                            className={`absolute inset-0 flex flex-col items-start justify-center transition-all duration-700 ease-in-out ${
+                              i === currentSlide ? "opacity-100 translate-y-0 z-10 pointer-events-auto" : "opacity-0 translate-y-3 pointer-events-none -z-10"
+                            }`}
+                          >
+                            {/* 第 1/2 行：集团主副标题 */}
+                            <h1 className="text-[36px] md:text-[56px] font-black leading-tight mb-2 tracking-[0.1em] drop-shadow-md">
+                              {slide.mainTitle}
+                            </h1>
+                            <h2 className="text-[14px] md:text-[22px] font-medium text-blue-100 opacity-90 tracking-[0.2em] mb-8 md:mb-10 drop-shadow-sm uppercase">
+                              {slide.subTitle}
+                            </h2>
+                            
+                            {/* 第 3/4 行：当前轮播的活动具体内容 */}
+                            <div className="border-l-4 border-blue-400 pl-4 md:pl-5 flex flex-col justify-center">
+                              <h3 className="text-[20px] md:text-[28px] font-bold mb-2 tracking-wide drop-shadow-sm flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 bg-white rounded-full inline-block mb-1 opacity-80" />
+                                {slide.eventTitle}
+                              </h3>
+                              <p className="text-[14px] md:text-[16px] font-medium text-blue-50 opacity-80 max-w-3xl leading-relaxed drop-shadow-sm whitespace-pre-line">
+                                {slide.eventDesc}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* 轮播导航点 */}
+                      <div className="mt-8 flex gap-3 relative z-20">
+                        {bannerSlides.map((_, i) => (
+                          <button
+                            key={i}
+                            onClick={(e) => { e.stopPropagation(); setCurrentSlide(i); }}
+                            className={`h-1.5 rounded-full transition-all duration-500 shadow-sm ${
+                              i === currentSlide ? "w-12 bg-white" : "w-6 bg-white/40 hover:bg-white/70"
+                            }`}
+                            aria-label={`Go to slide ${i + 1}`}
+                          />
+                        ))}
+                      </div>
+
+                    </div>
+                  </section>
+
+                  <section className="container mx-auto py-16 px-4">
+                    <h2 className="text-xl font-bold mb-8 flex items-center gap-3">
+                      <span className="w-1.5 h-6 bg-blue-600 rounded-full inline-block" />
+                      <button onClick={() => { setCurrentPage('news'); window.scrollTo(0, 0); }} className="text-blue-600 hover:underline font-bold">最新动态</button>
+                    </h2>
+                    <div className="flex gap-8 mb-6 border-b border-gray-200 overflow-x-auto whitespace-nowrap scrollbar-hide">
+                      {newsTabs.map((tab, i) => (
+                        <button
+                          key={tab}
+                          onClick={() => setActiveNewsTab(i)}
+                          className={`pb-3 text-base font-medium transition-colors relative ${
+                            activeNewsTab === i ? "text-blue-600" : "text-gray-500 hover:text-gray-900"
+                          }`}
+                        >
+                          {tab}
+                          {activeNewsTab === i && (
+                            <span className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t-full" />
+                          )}
+                        </button>
+                      ))}
+                      <button onClick={() => { setCurrentPage('news'); window.scrollTo(0, 0); }} className="ml-auto text-sm text-gray-500 hover:text-blue-600 pt-1 hidden sm:block">查看更多</button>
+                    </div>
+                    <div className="divide-y divide-gray-100">
+                      {currentTabItems.length > 0 ? currentTabItems.map((item, i) => (
+                        <a key={i} href={item.url} target="_blank" rel="noopener noreferrer" className="flex justify-between items-center py-4 text-sm hover:bg-gray-50 px-3 rounded-lg transition-colors cursor-pointer group">
+                          <span className="flex-1 pr-4 truncate group-hover:text-blue-600 transition-colors">
+                            <span className="text-gray-500 mr-2 font-medium">【{item.tag}】</span>
+                            {item.title}
+                          </span>
+                          <span className="text-gray-400 whitespace-nowrap ml-4 text-xs sm:text-sm">{item.date}</span>
+                        </a>
+                      )) : (
+                        <div className="py-12 text-center text-sm text-gray-500 bg-gray-50 rounded-lg">暂无内容，敬请期待</div>
+                      )}
+                    </div>
+                  </section>
+
+                  <section className="container mx-auto pb-16 px-4">
+                    <div className="grid lg:grid-cols-2 gap-12">
+                      <div>
+                        <h2 className="text-xl font-bold mb-8 flex items-center gap-3">
+                          <span className="w-1.5 h-6 bg-blue-600 rounded-full inline-block" />
+                          <button onClick={() => { setCurrentPage('community'); window.scrollTo(0, 0); }} className="text-blue-600 hover:underline font-bold">社区简介</button>
+                        </h2>
+                        <div className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm h-[220px] flex group hover:shadow-md transition-all cursor-pointer" onClick={() => { setCurrentPage('community'); window.scrollTo(0, 0); }}>
+                          <div className="w-2/5 h-full overflow-hidden relative">
+                            <div className="absolute inset-0 bg-blue-900/10 group-hover:bg-transparent transition-colors z-10" />
+                            <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=400" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          </div>
+                          <div className="w-3/5 p-6 flex flex-col justify-center">
+                            <h3 className="text-blue-600 text-[17px] font-bold mb-3">厦门OPC社区</h3>
+                            <p className="text-gray-600 text-[13px] leading-relaxed line-clamp-3">聚集人工智能产业生态，为单人创业者提供低成本、高质量的创业环境与服务。助力“一人成军、轻量创业”。</p>
+                            <div className="text-[13px] text-blue-600 font-medium group-hover:underline mt-4 inline-flex items-center gap-1">
+                              了解更多 <Icon name="ArrowRight" size={12} className="mt-0.5"/>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <h2 className="text-xl font-bold mb-8 flex items-center gap-3">
+                          <span className="w-1.5 h-6 bg-blue-600 rounded-full inline-block" />
+                          <button onClick={() => { setCurrentPage('services'); window.scrollTo(0, 0); }} className="text-blue-600 hover:underline font-bold">创业服务</button>
+                        </h2>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 h-[220px]">
+                          {services.map((svc) => (
+                            <button 
+                              onClick={() => { 
+                                let targetPage = 'services';
+                                if (svc.title === 'OPC开办') targetPage = 'opc_registration';
+                                if (svc.title === '融资对接') targetPage = 'financing';
+                                if (svc.title === '安居落户') targetPage = 'housing';
+                                setCurrentPage(targetPage); 
+                                window.scrollTo(0, 0); 
+                              }} 
+                              key={svc.title} 
+                              className="bg-white border border-gray-100 rounded-xl p-5 text-center hover:shadow-lg hover:border-blue-100 transition-all group flex flex-col justify-center items-center h-full w-full cursor-pointer"
+                            >
+                              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                                <Icon name={svc.icon} size={24} />
+                              </div>
+                              <div className="text-sm font-bold text-gray-800 mb-1">{svc.title}</div>
+                              <div className="text-xs text-gray-500 line-clamp-2">{svc.desc}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="bg-slate-50 py-16 px-4 border-t border-gray-100">
+                    <div className="container mx-auto text-center mb-10">
+                      <h2 className="text-2xl font-bold mb-3 text-gray-900">AI资源集市</h2>
+                      <p className="text-[14px] text-gray-500 max-w-2xl mx-auto">汇聚前沿数据资源、强劲算力服务与轻量化应用工具包，直达开发者终端，即开即用，加速AI创新落地。</p>
+                    </div>
+
+                    <div className="container mx-auto space-y-12 max-w-6xl">
+                      <div>
+                        <div className="flex items-center justify-between mb-5">
+                          <h3 className="text-[18px] font-bold flex items-center gap-2">
+                            <span className="w-1.5 h-5 bg-amber-500 rounded-full inline-block" /> 数据资源
+                          </h3>
+                          <button onClick={() => { setCurrentPage('marketplace'); window.scrollTo(0, 0); }} className="text-[14px] text-blue-600 font-medium hover:underline">查看更多 &rarr;</button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                          {dataLinks.map((item, i) => (
+                            <a key={i} href={item.url} target="_blank" rel="noopener noreferrer" className={`rounded-xl border p-5 hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col group ${item.isMain ? 'bg-gradient-to-br from-[#eef3fc] to-white border-[#0052d9]/20' : 'bg-white border-gray-100'}`}>
+                              <div className={`w-12 h-12 rounded-xl mb-4 flex items-center justify-center transition-colors ${item.isMain ? 'bg-[#0052d9] group-hover:bg-blue-700' : 'bg-amber-50 group-hover:bg-amber-100'}`}>
+                                <Icon name="Server" size={22} className={item.isMain ? 'text-white' : 'text-amber-600'} />
+                              </div>
+                              <h4 className={`text-[16px] font-bold mb-3 ${item.isMain ? 'text-[#0052d9]' : 'text-gray-800'}`}>{item.title}</h4>
+                              <p className={`text-[13px] text-gray-500 flex-1 leading-relaxed ${item.isMain ? '' : 'line-clamp-2'}`}>{item.desc}</p>
+                              {item.isMain ? (
+                                <span className="mt-5 inline-block text-[12px] font-bold bg-[#0052d9] text-white px-4 py-1.5 rounded-full shadow-sm group-hover:bg-blue-700 transition-colors self-start">进入总平台</span>
+                              ) : (
+                                <span className="mt-5 inline-block text-[12px] font-medium bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full group-hover:bg-blue-600 group-hover:text-white transition-colors self-start">查看详情</span>
+                              )}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-5">
+                          <h3 className="text-[18px] font-bold flex items-center gap-2 text-blue-600">
+                            <span className="w-1.5 h-5 bg-blue-600 rounded-full inline-block" /> 轻量工具包
+                          </h3>
+                          <button onClick={() => { setCurrentPage('marketplace'); window.scrollTo(0, 0); }} className="text-[14px] text-blue-600 font-medium hover:underline">查看更多 &rarr;</button>
+                        </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                          {[
+                            { title: "API 接口能力", desc: "为 OPC 创业者提供生成服务、金融科技、数据智能等多类接口能力，帮助项目快速接入核心功能，降低开发成本，加速产品落地。", link: "api_market" },
+                            { title: "MCP 标准连接", desc: "通过标准化连接能力打通工具、数据与模型，让 AI 应用更充分效率同外界资源，提升自动化水平与业务闭环效率。", link: "mcp_market" },
+                            { title: "一站式产品工具", desc: "围绕 OPC 创业者在项目启动、产品路线、运营增长、数据分析与支付接入等环节的实际需求，提供一站式工具支持。", link: "marketplace" },
+                          ].map((tool) => (
+                            <div key={tool.title} onClick={() => { setCurrentPage(tool.link); window.scrollTo(0, 0); }} className="bg-white rounded-xl border border-gray-100 p-6 hover:shadow-xl transition-shadow relative overflow-hidden group flex flex-col cursor-pointer">
+                              <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 rounded-bl-[80px] -z-10 group-hover:bg-blue-100 transition-colors" />
+                              <div className="flex items-center gap-3 mb-4">
+                                <div className="w-12 h-12 bg-gray-900 rounded-xl flex items-center justify-center shadow-md">
+                                  <Icon name="Wrench" size={20} className="text-white" />
+                                </div>
+                                <span className="text-[17px] font-bold text-gray-900">{tool.title}</span>
+                              </div>
+                              <p className="text-[13px] text-gray-600 leading-relaxed mb-6 flex-1">{tool.desc}</p>
+                              <div className="text-[13px] text-center font-medium bg-gray-900 text-white px-6 py-2 rounded-lg group-hover:bg-gray-800 transition-colors shadow-sm self-start">了解更多</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-5">
+                          <h3 className="text-[18px] font-bold flex items-center gap-2">
+                            <span className="w-1.5 h-5 bg-emerald-500 rounded-full inline-block" /> 普惠算力
+                          </h3>
+                          <button onClick={() => { setCurrentPage('marketplace'); window.scrollTo(0, 0); }} className="text-[14px] text-blue-600 font-medium hover:underline">查看更多 &rarr;</button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                          <a href="https://www.xmcpsp.com/" target="_blank" rel="noopener noreferrer" className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl p-6 hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col text-white shadow-md block cursor-pointer">
+                            <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl mb-4 flex items-center justify-center">
+                              <Icon name="Cpu" size={24} className="text-white" />
+                            </div>
+                            <h4 className="text-[17px] font-bold mb-3">厦门市公共算力服务平台</h4>
+                            <p className="text-[13px] text-emerald-50 leading-relaxed flex-1">提供优质计算能力和应用、算力闭环等服务，覆盖人工智能产业高质量发展所需。</p>
+                          </a>
+                          {[
+                            { name: "MetaX C550 64GB", price: "4,320" },
+                            { name: "Nvidia A800 80GB", price: "55,000" },
+                            { name: "Iluvatar BI-V150 64GB", price: "3,960" },
+                          ].map((gpu) => (
+                            <div key={gpu.name} onClick={() => window.open('https://www.xmcpsp.com/', '_blank')} className="bg-white rounded-xl border border-gray-100 p-6 flex flex-col h-full shadow-sm hover:shadow-xl transition-shadow group cursor-pointer">
+                              <div className="flex items-start justify-between mb-5">
+                                <span className="text-[15px] font-bold text-gray-800 pr-2 leading-tight">{gpu.name}</span>
+                                <span className="text-[11px] font-bold bg-red-100 text-red-600 px-2.5 py-1 rounded-full whitespace-nowrap">可租赁</span>
+                              </div>
+                              <div className="text-3xl font-black text-orange-500 mb-6 flex-1">
+                                <span className="text-lg font-bold mr-1">¥</span>{gpu.price}<span className="text-[14px] font-normal text-gray-500 ml-1">/ 月</span>
+                              </div>
+                              <div className="flex gap-3 mt-auto">
+                                <div className="flex-1 text-center text-[13px] font-medium bg-blue-50 text-blue-700 rounded-lg py-2 group-hover:bg-[#0052d9] group-hover:text-white transition-colors">立即使用</div>
+                                <div className="flex-1 text-center text-[13px] font-medium border border-gray-200 text-gray-600 rounded-lg py-2 group-hover:bg-gray-50 transition-colors">详情</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="container mx-auto py-16 px-4">
+                    <h2 className="text-xl font-bold mb-8 flex items-center gap-3">
+                      <span className="w-1.5 h-6 bg-blue-600 rounded-full inline-block" /> 场景供需对接
+                    </h2>
+                    
+                    {/* 【已修改】：添加了 cursor-pointer group 和 onClick，实现了整张卡片的点击跳转 */}
+                    <div 
+                      className={`bg-gradient-to-r ${scenarioSlides[scenarioSlide].bgFrom} ${scenarioSlides[scenarioSlide].bgTo} rounded-2xl p-8 md:p-12 text-white shadow-xl relative overflow-hidden transition-colors duration-1000 cursor-pointer group hover:shadow-2xl`}
+                      onClick={() => window.open(scenarioSlides[scenarioSlide].link, '_blank', 'noopener,noreferrer')}
+                    >
+                      {/* 背景动态装饰 */}
+                      <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 transition-all duration-1000 pointer-events-none" />
+                      <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2 transition-all duration-1000 pointer-events-none" />
+                      
+                      {/* 高度占位锚点 (不可见)，以确保轮播容器高度不塌陷 */}
+                      <div className="md:w-2/3 opacity-0 pointer-events-none">
+                         <span className="inline-block text-xs px-3 py-1 mb-4">Placeholder</span>
+                         <h3 className="text-3xl md:text-[32px] font-bold mb-4">Placeholder</h3>
+                         <p className="text-base md:text-[15px] leading-relaxed max-w-2xl mb-8">
+                           全面覆盖数字经济、人工智能、智慧物流、全空间无人体系等多元产业领域，提供最前沿的场景开放清单，助力企业快速精准寻找市场契合点。
+                         </p>
+                         <div className="px-8 py-3 text-sm">Btn</div>
+                      </div>
+
+                      {/* 轮播主体内容 */}
+                      <div className="absolute inset-0 p-8 md:p-12 z-10 flex items-center">
+                        <div className="relative w-full h-full flex items-center">
+                          {scenarioSlides.map((slide, i) => (
+                             <div 
+                                key={i} 
+                                className={`absolute w-full transition-all duration-700 ease-in-out ${
+                                  i === scenarioSlide ? "opacity-100 translate-x-0 z-10" : "opacity-0 translate-x-8 pointer-events-none -z-10"
+                                }`}
+                             >
+                                <div className="md:w-2/3">
+                                  <span className="inline-block bg-white/10 text-[13px] px-3 py-1 rounded mb-4 backdrop-blur-sm border border-white/20 text-blue-50 tracking-wide shadow-sm">
+                                    {slide.subtitle}
+                                  </span>
+                                  <h3 className="text-2xl md:text-[34px] font-bold mb-4 tracking-wide">{slide.title}</h3>
+                                  <p className="text-white/80 mb-8 text-[14px] md:text-[15px] leading-relaxed max-w-2xl font-medium">
+                                    {slide.desc}
+                                  </p>
+                                  {/* 【已修改】：将 a 标签改为了 div，以防止嵌套的超链接冲突，并增加了由外层 group-hover 触发的悬浮动效 */}
+                                  <div
+                                    className="inline-flex items-center justify-center bg-[#0052d9] text-white px-8 py-3.5 rounded-full text-[14px] font-bold group-hover:bg-blue-500 group-hover:shadow-lg group-hover:shadow-blue-500/30 transition-all gap-2"
+                                  >
+                                    {slide.btnText} <Icon name="ArrowRight" size={14}/>
+                                  </div>
+                                </div>
+                             </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 轮播指示器 */}
+                      {/* 【已修改】：添加了 e.stopPropagation() 防止点击小圆点时触发卡片跳转 */}
+                      <div className="absolute bottom-8 right-8 md:right-12 flex gap-2 z-20">
+                        {scenarioSlides.map((_, i) => (
+                          <button
+                            key={i}
+                            onClick={(e) => { e.stopPropagation(); setScenarioSlide(i); }}
+                            className={`h-1.5 rounded-full transition-all duration-300 ${
+                              i === scenarioSlide ? "w-8 bg-white" : "w-4 bg-white/30 hover:bg-white/60"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </section>
+
+                  <footer className="bg-gray-50 border-t border-gray-200 py-8">
+                    <div className="container mx-auto px-4 text-center text-gray-500 text-sm">
+                      <p>© 2026 厦门 OPC 社区. All rights reserved.</p>
+                    </div>
+                  </footer>
+                </div>
+              )}
+
+              {/* 其余路由页面 */}
+              {currentPage === 'news' && <NewsPage setCurrentPage={setCurrentPage} />}
+              {currentPage === 'community' && <CommunityPage setCurrentPage={setCurrentPage} />}
+              {currentPage === 'services' && <ServicesPage setCurrentPage={setCurrentPage} />}
+              {currentPage === 'opc_registration' && <OpcRegistrationPage setCurrentPage={setCurrentPage} />}
+              {currentPage === 'financing' && <FinancingPage setCurrentPage={setCurrentPage} />}
+              {currentPage === 'housing' && <HousingPage setCurrentPage={setCurrentPage} />}
+              {currentPage === 'marketplace' && <MarketplacePage setCurrentPage={setCurrentPage} />}
+              {currentPage === 'api_market' && <ApiMarketPage setCurrentPage={setCurrentPage} />}
+              {currentPage === 'mcp_market' && <McpMarketPage setCurrentPage={setCurrentPage} />}
+              {currentPage === 'feedback' && <FeedbackPage setCurrentPage={setCurrentPage} />}
+            </div>
+          );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

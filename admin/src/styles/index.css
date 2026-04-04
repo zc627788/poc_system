@@ -1,0 +1,422 @@
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+  background:
+    radial-gradient(circle at top, rgba(0, 82, 217, 0.08), transparent 32%),
+    linear-gradient(180deg, #f7faff 0%, #f3f6fb 100%);
+  color: #0f172a;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.8) transparent;
+}
+
+body::-webkit-scrollbar,
+.admin-layout *::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+body::-webkit-scrollbar-track,
+.admin-layout *::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+body::-webkit-scrollbar-thumb,
+.admin-layout *::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background: rgba(148, 163, 184, 0.82);
+  background-clip: content-box;
+}
+
+body::-webkit-scrollbar-thumb:hover,
+.admin-layout *::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.88);
+  background-clip: content-box;
+}
+
+.login-page {
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  background:
+    radial-gradient(circle at top left, rgba(43, 124, 255, 0.18), transparent 35%),
+    radial-gradient(circle at bottom right, rgba(96, 165, 250, 0.16), transparent 32%),
+    linear-gradient(135deg, #eef3ff 0%, #f8fbff 100%);
+}
+
+.login-shell {
+  width: 100%;
+  max-width: 980px;
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 24px;
+  align-items: stretch;
+}
+
+.login-brand,
+.login-card,
+.admin-page-card {
+  border-radius: 24px;
+  border: 1px solid rgba(208, 221, 237, 0.9);
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+}
+
+.login-brand {
+  padding: 40px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #0052d9 0%, #2b7cff 52%, #60a5fa 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.login-brand::after {
+  content: "";
+  position: absolute;
+  right: -60px;
+  bottom: -60px;
+  width: 220px;
+  height: 220px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  filter: blur(2px);
+}
+
+.login-brand-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.login-brand h1 {
+  margin: 18px 0 12px;
+  font-size: 34px;
+  line-height: 1.25;
+}
+
+.login-brand p {
+  margin: 0;
+  max-width: 420px;
+  font-size: 14px;
+  line-height: 1.9;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.login-highlights {
+  margin-top: 28px;
+  display: grid;
+  gap: 12px;
+}
+
+.login-highlight {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(10px);
+}
+
+.login-highlight strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 15px;
+}
+
+.login-card .ant-card-body {
+  padding: 32px;
+}
+
+.admin-layout .ant-pro-layout {
+  min-height: 100vh;
+  background: transparent;
+}
+
+.admin-layout .ant-layout,
+.admin-layout .ant-pro-layout-content {
+  background: transparent !important;
+}
+
+.admin-layout .ant-layout-header.ant-pro-layout-header {
+  background: linear-gradient(90deg, #0052d9 0%, #2b7cff 100%) !important;
+  box-shadow: 0 12px 30px rgba(0, 82, 217, 0.18);
+}
+
+.admin-layout .ant-pro-global-header-logo {
+  min-width: 0;
+}
+
+.admin-layout .ant-pro-global-header-logo a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.opc-admin-menu-header {
+  display: flex;
+  width: 100%;
+  min-height: 56px;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  padding: 10px 12px 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.opc-admin-menu-header-mark {
+  display: inline-flex;
+  min-width: 46px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #0052d9 0%, #2b7cff 100%);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  box-shadow: 0 10px 24px rgba(0, 82, 217, 0.2);
+}
+
+.opc-admin-menu-header-title {
+  color: #0f172a;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.admin-layout .ant-pro-global-header-logo img {
+  width: auto;
+  height: 34px;
+  object-fit: contain;
+}
+
+.admin-layout .ant-pro-global-header-logo h1,
+.admin-layout .ant-pro-global-header-logo a,
+.admin-layout .ant-pro-global-header-actions-item {
+  color: #ffffff !important;
+}
+
+.admin-layout .ant-pro-sider {
+  background: rgba(255, 255, 255, 0.82) !important;
+  backdrop-filter: blur(14px);
+  border-inline-end: 1px solid rgba(224, 231, 255, 0.9);
+}
+
+.admin-layout .ant-menu-inline {
+  background: transparent !important;
+}
+
+.admin-layout .ant-menu-item,
+.admin-layout .ant-menu-submenu-title {
+  border-radius: 12px !important;
+  margin-inline: 12px !important;
+  width: calc(100% - 24px) !important;
+}
+
+.admin-layout .ant-menu-submenu-title {
+  font-weight: 600;
+}
+
+.admin-layout .ant-menu-submenu .ant-menu-item {
+  margin-inline: 18px !important;
+  width: calc(100% - 36px) !important;
+  border-radius: 10px !important;
+}
+
+.admin-layout .ant-menu-item-selected {
+  background: rgba(0, 82, 217, 0.1) !important;
+  color: #0052d9 !important;
+}
+
+.admin-layout .ant-page-header {
+  margin-bottom: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(208, 221, 237, 0.9);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.06);
+}
+
+.admin-layout .ant-pro-layout-content {
+  width: 100%;
+  padding: 24px 28px 32px !important;
+}
+
+.admin-layout .ant-pro-page-container,
+.admin-layout .ant-pro-page-container-children-container {
+  width: 100%;
+  max-width: 1680px;
+  margin: 0 auto;
+}
+
+.admin-layout .ant-pro-page-container-children-container {
+  padding-inline: 0 !important;
+  padding-bottom: 24px !important;
+}
+
+.admin-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-page-card .ant-card-body {
+  padding: 22px 24px;
+}
+
+.admin-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-toolbar-left {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-muted {
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.admin-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.admin-stat-card {
+  padding: 18px 20px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(224, 231, 255, 0.9);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+}
+
+.admin-stat-card strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 28px;
+  color: #0f172a;
+}
+
+.admin-stat-card span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.admin-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.admin-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.admin-link-card {
+  display: block;
+  padding: 18px 20px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(224, 231, 255, 0.9);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.admin-link-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0, 82, 217, 0.22);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+.admin-link-card h3 {
+  margin: 10px 0 8px;
+  color: #0f172a;
+  font-size: 16px;
+}
+
+.admin-link-card p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.admin-layout .ant-table-wrapper .ant-table {
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.admin-layout .ant-table-wrapper .ant-table-container {
+  border-inline-start: 1px solid #eef2ff;
+  border-inline-end: 1px solid #eef2ff;
+}
+
+.admin-layout .ant-table-wrapper .ant-table-content,
+.admin-layout .ant-table-wrapper .ant-table-body {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.8) transparent;
+}
+
+.admin-layout .ant-card,
+.admin-layout .ant-modal-content,
+.admin-layout .ant-table-wrapper .ant-table,
+.admin-layout .ant-table-wrapper .ant-table-container {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.8) transparent;
+}
+
+.admin-layout .ant-modal-content {
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+@media (min-width: 1600px) {
+  .admin-layout .ant-pro-layout-content {
+    padding: 28px 36px 40px !important;
+  }
+
+  .admin-layout .ant-pro-page-container,
+  .admin-layout .ant-pro-page-container-children-container {
+    max-width: 1760px;
+  }
+}
+
+@media (max-width: 992px) {
+  .login-shell,
+  .admin-stat-grid,
+  .admin-grid-2,
+  .admin-grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
