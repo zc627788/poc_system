@@ -7,6 +7,7 @@ const apiOrigin = configuredApiBaseUrl.replace(/\/api\/?$/, "");
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  allowedDevOrigins: ["localhost", "127.0.0.1"],
   images: {
     unoptimized: true
   },
@@ -19,6 +20,10 @@ const nextConfig: NextConfig = {
       {
         source: "/prototype-assets/:path*",
         destination: `${apiOrigin}/prototype-assets/:path*`
+      },
+      {
+        source: "/uploads/:path*",
+        destination: `${apiOrigin}/uploads/:path*`
       }
     ];
   }

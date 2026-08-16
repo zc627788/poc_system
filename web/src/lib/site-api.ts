@@ -4,6 +4,7 @@ import { articleTabs } from "@/lib/site-constants";
 import type {
   Article,
   Banner,
+  HomeMarketplaceSummary,
   NavigationItem,
   PageSection,
   ResourceCategory,
@@ -23,30 +24,27 @@ const apiBaseUrl =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
   "http://127.0.0.1:8000/api";
 
-export const fallbackSiteSettings: SiteSettings = {
-  site_name: "厦门 OPC 社区门户",
-  site_subtitle: "成为一流的数智产业生态构建者",
-  logo_url: "/prototype-assets/opc-logo.png",
-  footer_text: "© 2026 厦门 OPC 社区. All rights reserved.",
-  contact_phone: "0592-5953016",
-  contact_email: "opc@xmigc.com",
-  icp_no: "闽ICP备2026000001号",
+export const emptySiteSettings: SiteSettings = {
+  site_name: "",
+  site_subtitle: "",
+  logo_url: "",
+  footer_text: "",
+  contact_phone: "",
+  contact_email: "",
+  icp_no: "",
 };
-
-export const fallbackNavigation: NavigationItem[] = [
-  { id: 1, label: "首页", path: "/", target_type: "internal", target_value: "/", sort_order: 1 },
-  { id: 2, label: "最新动态", path: "/news", target_type: "internal", target_value: "/news", sort_order: 2 },
-  { id: 3, label: "社区简介", path: "/community", target_type: "internal", target_value: "/community", sort_order: 3 },
-  { id: 4, label: "创业服务", path: "/services", target_type: "internal", target_value: "/services", sort_order: 4 },
-  { id: 5, label: "资源集市", path: "/marketplace", target_type: "internal", target_value: "/marketplace", sort_order: 5 },
-  { id: 6, label: "意见反馈", path: "/feedback", target_type: "internal", target_value: "/feedback", sort_order: 6 },
-];
 
 type HomePageData = {
   banners: Banner[];
   sections: PageSection[];
   serviceItems: ServiceItem[];
   articlesByTab: Record<string, Article[]>;
+  marketplaceSummary: HomeMarketplaceSummary;
+};
+
+const emptyHomeMarketplaceSummary: HomeMarketplaceSummary = {
+  summary: null,
+  groups: [],
 };
 
 async function fetchApi<T>(path: string, params?: Record<string, string | number | undefined>): Promise<T> {
@@ -81,33 +79,45 @@ export async function getSiteSettings() {
     return await fetchApi<SiteSettings>("/public/site-settings");
   } catch (error) {
     console.error("Failed to load site settings", error);
-    return fallbackSiteSettings;
+    return emptySiteSettings;
   }
 }
 
 export async function getNavigation() {
   try {
-    const data = await fetchApi<NavigationItem[]>("/public/navigation");
-    return data.length > 0 ? data : fallbackNavigation;
+    return await fetchApi<NavigationItem[]>("/public/navigation");
   } catch (error) {
     console.error("Failed to load navigation", error);
-    return fallbackNavigation;
+    return [];
   }
 }
 
 export async function getHomePageData(): Promise<HomePageData> {
+  const safeFetch = async <T>(fetcher: Promise<T>, fallback: T): Promise<T> => {
+    try {
+      return await fetcher;
+    } catch (error) {
+      console.error("Partial failure in homepage data fetch", error);
+      return fallback;
+    }
+  };
+
   try {
-    const [banners, sections, serviceItems, ...articleResponses] = await Promise.all([
-      fetchApi<Banner[]>("/public/banners"),
-      fetchApi<PageSection[]>("/public/page-sections/home"),
-      fetchApi<ServiceItem[]>("/public/service-items", {
+    const [banners, sections, serviceItems, marketplaceSummary, ...articleResponses] = await Promise.all([
+      safeFetch(fetchApi<Banner[]>("/public/banners"), []),
+      safeFetch(fetchApi<PageSection[]>("/public/page-sections/home"), []),
+      safeFetch(fetchApi<ServiceItem[]>("/public/service-items", {
         module_key: "home_service_entries",
-      }),
+      }), []),
+      safeFetch(fetchApi<HomeMarketplaceSummary>("/public/home-marketplace-summary"), emptyHomeMarketplaceSummary),
       ...articleTabs.map((tab) =>
-        fetchApi<Article[]>("/public/articles", {
-          category_code: tab.code,
-          limit: 4,
-        })
+        safeFetch(
+          fetchApi<Article[]>("/public/articles", {
+            category_code: tab.code,
+            limit: 4,
+          }),
+          []
+        )
       ),
     ]);
 
@@ -115,17 +125,19 @@ export async function getHomePageData(): Promise<HomePageData> {
       banners,
       sections,
       serviceItems,
+      marketplaceSummary,
       articlesByTab: articleResponses.reduce<Record<string, Article[]>>((result, items, index) => {
         result[articleTabs[index].code] = items;
         return result;
       }, {}),
     };
   } catch (error) {
-    console.error("Failed to load homepage data", error);
+    console.error("Critical failure in homepage data", error);
     return {
       banners: [],
       sections: [],
       serviceItems: [],
+      marketplaceSummary: emptyHomeMarketplaceSummary,
       articlesByTab: {},
     };
   }

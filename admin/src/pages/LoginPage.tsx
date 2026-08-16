@@ -30,7 +30,7 @@ export function LoginPage() {
       const nextPath =
         typeof location.state === "object" && location.state && "from" in location.state
           ? String(location.state.from)
-          : "/dashboard";
+          : "/home/overview";
       navigate(nextPath, { replace: true });
     } catch (error) {
       console.error("Login failed", error);
@@ -46,9 +46,7 @@ export function LoginPage() {
         <div className="login-brand">
           <div className="login-brand-badge">OPC CMS</div>
           <h1>OPC 管理后台</h1>
-          <p>
-            后台统一维护前台页面内容、资源数据、前台用户和意见反馈，适合日常运营与交付后持续更新。
-          </p>
+          <p>后台统一维护前台页面内容、资源数据、前台用户和意见反馈，适合日常运营与交付后的持续更新。</p>
 
           <div className="login-highlights">
             <div className="login-highlight">
@@ -57,22 +55,18 @@ export function LoginPage() {
             </div>
             <div className="login-highlight">
               <strong>反馈处理集中管理</strong>
-              <span>前台登录用户提交反馈后，后台反馈中心可看到提交人、手机号、处理状态和回复内容。</span>
-            </div>
-            <div className="login-highlight">
-              <strong>默认后台账号</strong>
-              <span>`admin` / `Admin@123456`</span>
+              <span>前台登录用户提交反馈后，后台反馈中心可查看提交人、手机号、处理状态和回复内容。</span>
             </div>
           </div>
         </div>
 
-        <Card bordered={false} className="login-card">
+        <Card className="login-card" variant="borderless">
           <Typography.Text type="secondary">OPC CMS</Typography.Text>
           <Typography.Title level={2} style={{ marginBottom: 8, marginTop: 12 }}>
             登录后台
           </Typography.Title>
           <Typography.Paragraph type="secondary">
-            建议先从工作台和用户中心确认当前数据状态，再进入具体内容模块维护。
+            登录后将直接进入首页总览，可按前台页面位置快速找到对应维护入口。
           </Typography.Paragraph>
 
           <Form layout="vertical" onFinish={handleFinish} requiredMark={false}>

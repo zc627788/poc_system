@@ -30,10 +30,19 @@ class SiteUserLoginRequest(BaseModel):
     password: str
 
 
+class SiteUserTestBridgeRequest(BaseModel):
+    id: int
+    phone: str
+    auth_source: str | None = None
+
+
 class SiteUserProfile(BaseModel):
     id: int
     name: str
     phone: str
+    real_name: str | None = None
+    mobile_fuzzy: str | None = None
+    auth_source: str = "local"
     status: int
     created_at: str
     last_login_at: str | None = None

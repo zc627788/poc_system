@@ -1,4 +1,4 @@
-import { Alert, Button, Card, Form, Input, message } from "antd";
+import { Button, Card, Form, Input, message } from "antd";
 import { useEffect, useState } from "react";
 import { adminApi } from "../api";
 import type { ApiResponse, SiteSettingsData } from "../types";
@@ -50,13 +50,6 @@ export function SiteSettingsPage() {
 
   return (
     <Card className="admin-page-card" loading={loading}>
-      <Alert
-        description="这里会影响前台头部 Logo、全站 SEO 基础信息和页脚版权文案，阶段 3 仍然是所有页面共享的全局配置。"
-        message="前台映射"
-        showIcon
-        style={{ marginBottom: 16 }}
-        type="info"
-      />
       <Form
         form={form}
         initialValues={defaultValues}
@@ -74,8 +67,8 @@ export function SiteSettingsPage() {
         >
           <Input placeholder="请输入站点副标题" />
         </Form.Item>
-        <Form.Item label="Logo 地址" name="logo_url">
-          <Input placeholder="请输入 Logo 图片地址" />
+        <Form.Item hidden name="logo_url">
+          <Input />
         </Form.Item>
         <Form.Item label="页脚文案" name="footer_text" rules={[{ required: true, message: "请输入页脚文案" }]}>
           <Input.TextArea placeholder="请输入页脚文案" rows={3} />

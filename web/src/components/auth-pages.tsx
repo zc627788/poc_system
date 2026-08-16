@@ -1,60 +1,64 @@
 "use client";
 
-import { ArrowRight, LockKeyhole, Phone, UserRound } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { clearSiteAuth, getCachedSiteUser, loginSiteUser, registerSiteUser } from "@/lib/site-auth";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import {
+  buildIxiaMenLoginStartUrl,
+  clearSiteAuth,
+  fetchCurrentSiteUser,
+  getSiteAuthToken,
+  saveSiteAuth,
+  saveSiteAuthToken,
+} from "@/lib/site-auth";
 
 type AuthMessage = {
   type: "error" | "success";
   text: string;
 };
 
-const phonePattern = /^1[3-9]\d{9}$/;
-const passwordPattern = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d~!@#$%^&*()_+\-=[\]{}|;:'",.<>/?]{8,20}$/;
+function normalizeReturnTo(value?: string | null) {
+  const normalized = (value || "").trim();
+  if (!normalized || !normalized.startsWith("/") || normalized.startsWith("//")) {
+    return "/";
+  }
+  return normalized;
+}
 
-function AuthShell({
-  badge,
-  title,
-  subtitle,
-  formTitle,
-  formDesc,
-  children,
-}: {
-  badge: string;
-  title: string;
-  subtitle: string;
-  formTitle: string;
-  formDesc: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="min-h-full bg-[#f5f7fa] pb-16">
-      <section className="relative overflow-hidden bg-gradient-to-r from-[#0052d9] via-[#1668f3] to-[#4b92f8] px-4 pb-16 pt-12">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_15%,rgba(255,255,255,0.16),transparent_26%),radial-gradient(circle_at_15%_85%,rgba(255,255,255,0.12),transparent_24%)]" />
-        <div className="container relative mx-auto max-w-6xl">
-          <div className="inline-flex rounded-full border border-white/25 bg-white/10 px-4 py-1 text-[12px] font-semibold tracking-[0.24em] text-white/90">
-            {badge}
-          </div>
-          <h1 className="mt-5 text-[34px] font-bold leading-tight text-white">{title}</h1>
-          <p className="mt-3 max-w-2xl text-[15px] leading-7 text-white/85">{subtitle}</p>
-        </div>
-      </section>
+function getHashToken() {
+  if (typeof window === "undefined") {
+    return "";
+  }
 
-      <section className="container mx-auto max-w-6xl px-4 pt-8">
-        <div className="mx-auto max-w-[620px] rounded-[30px] border border-[#e6edf8] bg-white p-7 shadow-[0_24px_80px_rgba(15,23,42,0.08)] md:p-9">
-          <div className="mb-8 rounded-[24px] bg-[linear-gradient(135deg,#eef4ff_0%,#f8fbff_100%)] px-5 py-5">
-            <div className="text-[12px] font-semibold uppercase tracking-[0.28em] text-[#7a8db2]">{badge}</div>
-            <h2 className="mt-3 text-[30px] font-bold text-[#0f172a]">{formTitle}</h2>
-            <p className="mt-2 text-[14px] leading-6 text-[#64748b]">{formDesc}</p>
-          </div>
+  const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : window.location.hash;
+  const token = new URLSearchParams(hash).get("token") || "";
+  console.log("[auth-pages] getHashToken: hash=", hash, "token=", token ? `${token.slice(0, 20)}...` : "empty");
+  return token;
+}
 
-          {children}
-        </div>
-      </section>
-    </div>
-  );
+function parseJwtToken(token: string): { sub: string; exp: number; role: string; phone: string; name: string } | null {
+  try {
+    const payload = token.split(".")[1];
+    const decoded = JSON.parse(atob(payload));
+    return decoded;
+  } catch {
+    return null;
+  }
+}
+
+function replaceLoginUrl(returnTo: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const url = new URL(window.location.href);
+  url.searchParams.delete("mode");
+  url.searchParams.delete("error");
+  url.hash = "";
+  const nextUrl = returnTo && returnTo !== "/" ? `/login?return_to=${encodeURIComponent(returnTo)}` : "/login";
+  console.log("[auth-pages] replaceLoginUrl: current URL=", window.location.href, "next URL=", nextUrl);
+  window.history.replaceState(null, "", nextUrl);
 }
 
 function MessageBar({ message }: { message: AuthMessage | null }) {
@@ -64,7 +68,7 @@ function MessageBar({ message }: { message: AuthMessage | null }) {
 
   return (
     <div
-      className={`rounded-2xl border px-4 py-3 text-[13px] ${
+      className={`rounded-2xl border px-4 py-3 text-[13px] leading-6 ${
         message.type === "success"
           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
           : "border-rose-200 bg-rose-50 text-rose-600"
@@ -75,254 +79,243 @@ function MessageBar({ message }: { message: AuthMessage | null }) {
   );
 }
 
-export function LoginPageView() {
+function AuthShell({
+  title,
+  description,
+  buttonText,
+  helperText,
+  returnTo,
+  message,
+  submitting,
+  onStart,
+}: {
+  title: string;
+  description: string;
+  buttonText: string;
+  helperText: string;
+  returnTo: string;
+  message: AuthMessage | null;
+  submitting: boolean;
+  onStart: () => void;
+}) {
+  return (
+    <div className="min-h-full bg-[linear-gradient(180deg,#f3f7ff_0%,#f7faff_100%)]">
+      <section className="relative overflow-hidden px-4 py-16 sm:py-20">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(0,82,217,0.14),transparent_42%),radial-gradient(circle_at_80%_20%,rgba(0,82,217,0.08),transparent_24%)]" />
+        <div className="relative mx-auto max-w-[560px]">
+          <div className="rounded-[32px] border border-[#dce8fb] bg-white p-8 shadow-[0_24px_80px_rgba(15,23,42,0.10)] sm:p-10">
+            <h1 className="text-[32px] font-black leading-tight text-[#0f172a] sm:text-[38px]">{title}</h1>
+
+            <div className="mt-6 rounded-[22px] bg-[#f7faff] px-5 py-4 text-[14px] leading-7 text-[#5b6b82]">
+              {description}
+            </div>
+
+            <div className="mt-6">
+              <MessageBar message={message} />
+            </div>
+
+            <button
+              className="mt-6 inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-[18px] bg-[#0052d9] px-6 text-[15px] font-semibold text-white transition-colors hover:bg-[#0046bb] disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={submitting}
+              onClick={onStart}
+              type="button"
+            >
+              {submitting ? "正在进入..." : buttonText}
+              <ArrowRight size={16} />
+            </button>
+
+            <p className="mt-4 text-[13px] leading-6 text-[#6b7b92]">
+              {returnTo === "/" ? "登录完成后将自动返回门户首页。" : "登录完成后将自动返回你当前访问的页面。"}
+            </p>
+
+            <div className="mt-8 border-t border-[#e8eef8] pt-5 text-[13px] leading-6 text-[#7a8aa2]">
+              <div>{helperText}</div>
+              <div className="mt-2">
+                <Link className="font-semibold text-[#0052d9]" href="/">
+                  返回首页
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function useSsoFlow() {
   const router = useRouter();
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
+  const searchParams = useSearchParams();
+  const handledCallback = useRef(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<AuthMessage | null>(null);
 
+  const returnTo = normalizeReturnTo(searchParams.get("return_to"));
+  const mode = searchParams.get("mode");
+  const callbackError = searchParams.get("error");
+
   useEffect(() => {
-    if (getCachedSiteUser()) {
-      router.replace("/");
-    }
-  }, [router]);
+    // 提前获取当前本地的 Token 状态快照
+    const localToken = getSiteAuthToken();
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setMessage(null);
-
-    if (!phonePattern.test(phone.trim())) {
-      setMessage({ type: "error", text: "请输入合法的中国大陆手机号。" });
+    // 1. 非 callback 模式，如果有 token 则直接跳转到 returnTo
+    if (mode !== "callback") {
+      if (localToken) {
+        router.replace(returnTo);
+      }
       return;
     }
 
-    if (!password.trim()) {
-      setMessage({ type: "error", text: "请输入登录密码。" });
+    // 2. callback 模式，严格限制单次执行
+    if (handledCallback.current) {
       return;
     }
+    handledCallback.current = true;
 
     setSubmitting(true);
+    setMessage(null);
+
+    const finishWithError = (text: string) => {
+      console.log("[auth-pages] finishWithError:", text);
+      // 【修复点 1】只有本地确实没有有效 Token 时，才彻底清空。防止二次并发误杀已写入的 Token
+      if (!getSiteAuthToken()) {
+        clearSiteAuth();
+      }
+      setSubmitting(false);
+      setMessage({ type: "error", text });
+
+      // 【修复点 2】使用对 Next.js 友好的路由清洗，替代原生的 replaceState
+      const nextUrl = returnTo && returnTo !== "/" ? `/login?return_to=${encodeURIComponent(returnTo)}` : "/login";
+      router.replace(nextUrl);
+    };
+
+    // 检查错误
+    if (callbackError) {
+      finishWithError(callbackError);
+      return;
+    }
+
+    // 从 hash 获取 token
+    const tokenFromHash = getHashToken();
+    if (!tokenFromHash) {
+      // 【修复点 3】核心容错：如果 Hash 里的已被清洗，但本地已经存好了 Token，说明前一次尝试已成功，直接安全跳走
+      if (localToken) {
+        console.log("[auth-pages] Hash token empty, but local token exists. Presuming success, redirecting...");
+        router.replace(returnTo);
+        setSubmitting(false);
+        return;
+      }
+      finishWithError("登录未返回有效凭证，请稍后重试。");
+      return;
+    }
+
+    // 解析 token 获取 user 信息
+    const decoded = parseJwtToken(tokenFromHash);
+    if (!decoded) {
+      finishWithError("Token 解析失败，请稍后重试。");
+      return;
+    }
+
+    // 构造 user 对象
+    const user = {
+      id: parseInt(decoded.sub),
+      name: decoded.name,
+      phone: decoded.phone,
+      auth_source: "ixiamen",
+      status: 1,
+      created_at: new Date().toISOString(),
+    };
+
+    // 一次性保存 token 和 user
+    saveSiteAuth({
+      access_token: tokenFromHash,
+      token_type: "Bearer",
+      expires_in: 3600,
+      user,
+    });
+
+    setMessage({ type: "success", text: "登录成功，正在进入门户..." });
+
+    // 【修复点 4】直接使用 Next.js 自身的 router 体系切走，它在改变 URL 的同时会自动清理 Hash 并防止树震荡
+    router.replace(returnTo);
+    setSubmitting(false);
+  }, [mode, returnTo, callbackError, router]);
+
+  const startLogin = () => {
+    setSubmitting(true);
+    setMessage(null);
     try {
-      await loginSiteUser({ phone: phone.trim(), password: password.trim() });
-      setMessage({ type: "success", text: "登录成功，正在返回首页。" });
-      router.push("/");
-      router.refresh();
+      if (typeof window !== "undefined") {
+        window.location.assign(buildIxiaMenLoginStartUrl(returnTo));
+      }
     } catch (error) {
+      setSubmitting(false);
       setMessage({
         type: "error",
-        text: error instanceof Error ? error.message : "登录失败，请检查手机号和密码。",
+        text: error instanceof Error ? error.message : "登录地址生成失败，请检查环境配置。",
       });
-    } finally {
-      setSubmitting(false);
     }
   };
 
+  return {
+    mode,
+    message,
+    returnTo,
+    startLogin,
+    submitting,
+  };
+}
+
+export function LoginPageView() {
+  const { mode, message, returnTo, startLogin, submitting } = useSsoFlow();
+
+  useEffect(() => {
+    if (mode !== "callback") {
+      startLogin();
+    }
+  }, [mode, startLogin]);
+
+  if (mode !== "callback") {
+    return <div className="min-h-full bg-[linear-gradient(180deg,#f3f7ff_0%,#f7faff_100%)]" />;
+  }
+
   return (
     <AuthShell
-      badge="MEMBER LOGIN"
-      formDesc="登录后可以直接使用当前手机号提交反馈，后台也能识别当前会员身份。"
-      formTitle="欢迎回来"
-      subtitle="使用已注册的手机号和密码登录，进入门户会员服务。"
-      title="门户会员登录"
-    >
-      <form className="space-y-5" onSubmit={handleSubmit}>
-        <label className="block">
-          <span className="mb-2 block text-[13px] font-semibold text-[#334155]">手机号</span>
-          <div className="flex items-center rounded-2xl border border-[#d7e2f1] bg-[#fbfdff] px-4 py-3">
-            <Phone className="mr-3 text-[#7a8db2]" size={18} />
-            <input
-              className="w-full border-0 bg-transparent text-[14px] outline-none placeholder:text-[#94a3b8]"
-              maxLength={11}
-              onChange={(event) => setPhone(event.target.value)}
-              placeholder="请输入 11 位手机号"
-              type="tel"
-              value={phone}
-            />
-          </div>
-        </label>
-
-        <label className="block">
-          <span className="mb-2 block text-[13px] font-semibold text-[#334155]">密码</span>
-          <div className="flex items-center rounded-2xl border border-[#d7e2f1] bg-[#fbfdff] px-4 py-3">
-            <LockKeyhole className="mr-3 text-[#7a8db2]" size={18} />
-            <input
-              className="w-full border-0 bg-transparent text-[14px] outline-none placeholder:text-[#94a3b8]"
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="请输入登录密码"
-              type="password"
-              value={password}
-            />
-          </div>
-        </label>
-
-        <MessageBar message={message} />
-
-        <button
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#0052d9] px-6 py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-[#0046bb] disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={submitting}
-          type="submit"
-        >
-          {submitting ? "登录中..." : "登录门户账户"}
-          <ArrowRight size={16} />
-        </button>
-      </form>
-
-      <div className="mt-6 text-[14px] text-[#64748b]">
-        还没有账户？
-        <Link className="ml-2 font-semibold text-[#0052d9]" href="/register">
-          立即注册
-        </Link>
-      </div>
-    </AuthShell>
+      buttonText={message?.type === "error" ? "重新登录" : "处理中"}
+      description={message?.type === "error" ? "统一认证未完成，请重新发起登录。" : "统一认证结果处理中，请稍候。"}
+      helperText="完成统一认证后，系统会自动回到当前页面。"
+      message={message}
+      onStart={startLogin}
+      returnTo={returnTo}
+      submitting={submitting && !message}
+      title={message?.type === "error" ? "登录失败" : "登录结果"}
+    />
   );
 }
 
 export function RegisterPageView() {
-  const router = useRouter();
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState<AuthMessage | null>(null);
+  const { mode, message, returnTo, startLogin, submitting } = useSsoFlow();
 
   useEffect(() => {
-    if (getCachedSiteUser()) {
-      router.replace("/");
+    if (mode !== "callback") {
+      startLogin();
     }
-  }, [router]);
+  }, [mode, startLogin]);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setMessage(null);
-
-    if (name.trim().length < 2 || name.trim().length > 20) {
-      setMessage({ type: "error", text: "姓名需控制在 2 到 20 个字符之间。" });
-      return;
-    }
-
-    if (!phonePattern.test(phone.trim())) {
-      setMessage({ type: "error", text: "请输入合法的中国大陆手机号。" });
-      return;
-    }
-
-    if (!passwordPattern.test(password.trim())) {
-      setMessage({ type: "error", text: "密码需为 8 到 20 位，并同时包含字母和数字。" });
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setMessage({ type: "error", text: "两次输入的密码不一致，请重新确认。" });
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      clearSiteAuth();
-      await registerSiteUser({
-        name: name.trim(),
-        phone: phone.trim(),
-        password: password.trim(),
-      });
-      setMessage({ type: "success", text: "注册成功，正在进入首页。" });
-      router.push("/");
-      router.refresh();
-    } catch (error) {
-      setMessage({
-        type: "error",
-        text: error instanceof Error ? error.message : "注册失败，请稍后重试。",
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  if (mode !== "callback") {
+    return <div className="min-h-full bg-[linear-gradient(180deg,#f3f7ff_0%,#f7faff_100%)]" />;
+  }
 
   return (
     <AuthShell
-      badge="MEMBER REGISTER"
-      formDesc="使用手机号完成注册，无需短信验证码，注册成功后后台会同步生成用户记录。"
-      formTitle="创建新会员"
-      subtitle="完成注册后即可登录门户，并使用手机号作为统一身份信息。"
-      title="注册门户账户"
-    >
-      <form className="space-y-5" onSubmit={handleSubmit}>
-        <label className="block">
-          <span className="mb-2 block text-[13px] font-semibold text-[#334155]">姓名</span>
-          <div className="flex items-center rounded-2xl border border-[#d7e2f1] bg-[#fbfdff] px-4 py-3">
-            <UserRound className="mr-3 text-[#7a8db2]" size={18} />
-            <input
-              className="w-full border-0 bg-transparent text-[14px] outline-none placeholder:text-[#94a3b8]"
-              maxLength={20}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="请输入姓名或昵称"
-              type="text"
-              value={name}
-            />
-          </div>
-        </label>
-
-        <label className="block">
-          <span className="mb-2 block text-[13px] font-semibold text-[#334155]">手机号</span>
-          <div className="flex items-center rounded-2xl border border-[#d7e2f1] bg-[#fbfdff] px-4 py-3">
-            <Phone className="mr-3 text-[#7a8db2]" size={18} />
-            <input
-              className="w-full border-0 bg-transparent text-[14px] outline-none placeholder:text-[#94a3b8]"
-              maxLength={11}
-              onChange={(event) => setPhone(event.target.value)}
-              placeholder="请输入 11 位手机号"
-              type="tel"
-              value={phone}
-            />
-          </div>
-        </label>
-
-        <label className="block">
-          <span className="mb-2 block text-[13px] font-semibold text-[#334155]">密码</span>
-          <div className="flex items-center rounded-2xl border border-[#d7e2f1] bg-[#fbfdff] px-4 py-3">
-            <LockKeyhole className="mr-3 text-[#7a8db2]" size={18} />
-            <input
-              className="w-full border-0 bg-transparent text-[14px] outline-none placeholder:text-[#94a3b8]"
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="8 到 20 位，需包含字母和数字"
-              type="password"
-              value={password}
-            />
-          </div>
-        </label>
-
-        <label className="block">
-          <span className="mb-2 block text-[13px] font-semibold text-[#334155]">确认密码</span>
-          <div className="flex items-center rounded-2xl border border-[#d7e2f1] bg-[#fbfdff] px-4 py-3">
-            <LockKeyhole className="mr-3 text-[#7a8db2]" size={18} />
-            <input
-              className="w-full border-0 bg-transparent text-[14px] outline-none placeholder:text-[#94a3b8]"
-              onChange={(event) => setConfirmPassword(event.target.value)}
-              placeholder="请再次输入密码"
-              type="password"
-              value={confirmPassword}
-            />
-          </div>
-        </label>
-
-        <MessageBar message={message} />
-
-        <button
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#0052d9] px-6 py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-[#0046bb] disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={submitting}
-          type="submit"
-        >
-          {submitting ? "注册中..." : "注册并进入门户"}
-          <ArrowRight size={16} />
-        </button>
-      </form>
-
-      <div className="mt-6 text-[14px] text-[#64748b]">
-        已有账户？
-        <Link className="ml-2 font-semibold text-[#0052d9]" href="/login">
-          立即登录
-        </Link>
-      </div>
-    </AuthShell>
+      buttonText={message?.type === "error" ? "重新登录" : "处理中"}
+      description={message?.type === "error" ? "统一认证未完成，请重新发起登录。" : "统一认证结果处理中，请稍候。"}
+      helperText="完成统一认证后，系统会自动回到当前页面。"
+      message={message}
+      onStart={startLogin}
+      returnTo={returnTo}
+      submitting={submitting && !message}
+      title={message?.type === "error" ? "登录失败" : "登录结果"}
+    />
   );
 }

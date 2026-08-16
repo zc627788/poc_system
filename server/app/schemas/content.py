@@ -65,9 +65,12 @@ class ResourceCategoryCreateRequest(BaseModel):
     group_key: str | None = None
     description: str = ""
     icon: str | None = None
+    image_url: str | None = None
+    display_template: str = "default"
     action_type: str = "none"
     action_value: str | None = None
     button_text: str | None = None
+    show_on_home: int = 1
     sort_order: int = 0
     is_published: int = 1
 
@@ -85,8 +88,13 @@ class ResourceItemCreateRequest(BaseModel):
     status_text: str | None = None
     link_type: str = "none"
     link_value: str | None = None
+    primary_button_text: str | None = None
+    secondary_link_type: str = "none"
+    secondary_link_value: str | None = None
+    secondary_button_text: str | None = None
     tags_json: str | None = None
     meta_json: str | None = None
+    show_on_home: int = 1
     sort_order: int = 0
     is_published: int = 1
 

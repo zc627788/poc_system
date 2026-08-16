@@ -1,0 +1,21 @@
+<svg width="56" height="56" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="shadow" x="0" y="0" width="56" height="56" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="4"/>
+      <feGaussianBlur stdDeviation="6"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.0666667 0 0 0 0 0.14902 0 0 0 0 0.321569 0 0 0 0.12 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_1_1"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_1_1" result="shape"/>
+    </filter>
+    <linearGradient id="shield" x1="15.5" y1="13" x2="38.5" y2="40.5" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1E90FF"/>
+      <stop offset="1" stop-color="#0052FF"/>
+    </linearGradient>
+  </defs>
+  <g filter="url(#shadow)">
+    <path d="M28 12L38 15.6V23.4C38 30.7 33.7 37.1 28 38.7C22.3 37.1 18 30.7 18 23.4V15.6L28 12Z" stroke="url(#shield)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M23 25.7L27 29.7L34.2 21.3" stroke="url(#shield)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

@@ -1,0 +1,31 @@
+<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bg" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(38 32) rotate(52) scale(62)">
+      <stop stop-color="#F8FCFF"/>
+      <stop offset="1" stop-color="#EEF4FF"/>
+    </radialGradient>
+    <linearGradient id="card" x1="28" y1="18" x2="64" y2="53" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF8D9"/>
+      <stop offset="1" stop-color="#FFFFFF"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="20" y1="56" x2="49" y2="74" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#91F26A"/>
+      <stop offset="1" stop-color="#22C55E"/>
+    </linearGradient>
+    <linearGradient id="shadow" x1="19" y1="69" x2="55" y2="69" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#DDEBFF"/>
+      <stop offset="1" stop-color="#B9D0FF"/>
+    </linearGradient>
+  </defs>
+  <circle cx="48" cy="48" r="48" fill="url(#bg)"/>
+  <ellipse cx="45" cy="71" rx="20" ry="7" fill="url(#shadow)"/>
+  <path d="M25 58L41 49L50 71L33 77L25 58Z" fill="url(#accent)"/>
+  <path d="M27 59L37 54L44 70L33 75L27 59Z" fill="#7FE35A"/>
+  <path d="M34 58L31 53L35 50L38 55L34 58Z" fill="#25C75D"/>
+  <rect x="34" y="22" width="28" height="35" rx="5" fill="url(#card)" stroke="#D8E7FF"/>
+  <rect x="39" y="30" width="18" height="3" rx="1.5" fill="#FFD34E"/>
+  <rect x="39" y="37" width="14" height="2.5" rx="1.25" fill="#C7D6F2"/>
+  <rect x="39" y="43" width="17" height="2.5" rx="1.25" fill="#C7D6F2"/>
+  <rect x="39" y="49" width="12" height="2.5" rx="1.25" fill="#C7D6F2"/>
+  <path d="M59 25L62 28V54C62 55.657 60.657 57 59 57H43" fill="#F5F8FF"/>
+</svg>

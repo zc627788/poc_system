@@ -10,6 +10,10 @@ from app.models.article_category import ArticleCategory
 from app.models.banner import Banner
 from app.models.feedback import Feedback
 from app.models.navigation_item import NavigationItem
+from app.models.opc_application import OpcApplication
+from app.models.opc_application_action_log import OpcApplicationActionLog
+from app.models.opc_application_material_file import OpcApplicationMaterialFile
+from app.models.opc_application_review_record import OpcApplicationReviewRecord
 from app.models.page_section import PageSection
 from app.models.resource_category import ResourceCategory
 from app.models.resource_item import ResourceItem
@@ -21,11 +25,13 @@ from app.schemas.site import (
     ArticleCategoryResponse,
     ArticleResponse,
     BannerResponse,
+    HomeMarketplaceGroupResponse,
+    HomeMarketplaceSummaryResponse,
     NavigationItemResponse,
     PageSectionResponse,
-    ResourceCategoryResponse,
     FeedbackSubmitRequest,
     FeedbackSubmitResponse,
+    ResourceCategoryResponse,
     ResourceItemResponse,
     ServiceItemResponse,
     SiteSettingsResponse,
@@ -35,6 +41,12 @@ from app.services.auth import validate_phone
 
 router = APIRouter()
 
+HOME_MARKETPLACE_GROUPS = [
+    {"key": "data", "section_key": "marketplace_group_data"},
+    {"key": "tools", "section_key": "marketplace_group_tools"},
+    {"key": "compute", "section_key": "marketplace_group_compute"},
+]
+
 
 @router.get("/site-settings", response_model=ApiResponse[SiteSettingsResponse])
 def get_site_settings(db: Session = Depends(get_db)) -> ApiResponse[SiteSettingsResponse]:
@@ -43,7 +55,7 @@ def get_site_settings(db: Session = Depends(get_db)) -> ApiResponse[SiteSettings
         data = SiteSettingsResponse(
             site_name="厦门 OPC 社区门户",
             site_subtitle="成为一流的数智产业生态构建者",
-            logo_url="/prototype-assets/opc-logo.png",
+            logo_url="/site-logo-opc-community.png",
             footer_text="© 2026 厦门 OPC 社区. All rights reserved.",
             contact_phone="0592-5953016",
             contact_email="opc@xmigc.com",
@@ -183,21 +195,7 @@ def get_page_sections(page_key: str, db: Session = Depends(get_db)) -> ApiRespon
         .order_by(PageSection.sort_order.asc(), PageSection.id.asc())
         .all()
     )
-    return ApiResponse(
-        data=[
-            PageSectionResponse(
-                id=item.id,
-                page_key=item.page_key,
-                section_key=item.section_key,
-                title=item.title,
-                subtitle=item.subtitle,
-                content=item.content,
-                extra_json=item.extra_json,
-                sort_order=item.sort_order,
-            )
-            for item in items
-        ]
-    )
+    return ApiResponse(data=[response for item in items if (response := _page_section_to_response(item)) is not None])
 
 
 @router.get("/resource-categories", response_model=ApiResponse[list[ResourceCategoryResponse]])
@@ -227,6 +225,64 @@ def get_resource_items(
     return ApiResponse(data=[_resource_item_to_response(item) for item in items])
 
 
+@router.get("/home-marketplace-summary", response_model=ApiResponse[HomeMarketplaceSummaryResponse])
+def get_home_marketplace_summary(db: Session = Depends(get_db)) -> ApiResponse[HomeMarketplaceSummaryResponse]:
+    section_keys = ["marketplace_summary", *[item["section_key"] for item in HOME_MARKETPLACE_GROUPS]]
+    sections = (
+        db.query(PageSection)
+        .filter(
+            PageSection.page_key == "home",
+            PageSection.section_key.in_(section_keys),
+            PageSection.is_published == 1,
+        )
+        .all()
+    )
+    sections_by_key = {item.section_key: item for item in sections}
+
+    categories = (
+        db.query(ResourceCategory)
+        .filter(
+            ResourceCategory.resource_type == "marketplace",
+            ResourceCategory.is_published == 1,
+            ResourceCategory.show_on_home == 1,
+        )
+        .order_by(ResourceCategory.group_key.asc(), ResourceCategory.sort_order.asc(), ResourceCategory.id.asc())
+        .all()
+    )
+    items = (
+        db.query(ResourceItem)
+        .join(ResourceCategory)
+        .filter(
+            ResourceItem.resource_type == "marketplace",
+            ResourceItem.is_published == 1,
+            ResourceItem.show_on_home == 1,
+            ResourceCategory.is_published == 1,
+            ResourceCategory.show_on_home == 1,
+        )
+        .order_by(ResourceCategory.sort_order.asc(), ResourceItem.sort_order.asc(), ResourceItem.id.asc())
+        .all()
+    )
+
+    groups: list[HomeMarketplaceGroupResponse] = []
+    for group in HOME_MARKETPLACE_GROUPS:
+        key = group["key"]
+        groups.append(
+            HomeMarketplaceGroupResponse(
+                key=key,
+                section=_page_section_to_response(sections_by_key.get(group["section_key"])),
+                categories=[_resource_category_to_response(item) for item in categories if item.group_key == key],
+                items=[_resource_item_to_response(item) for item in items if item.category.group_key == key],
+            )
+        )
+
+    return ApiResponse(
+        data=HomeMarketplaceSummaryResponse(
+            summary=_page_section_to_response(sections_by_key.get("marketplace_summary")),
+            groups=groups,
+        )
+    )
+
+
 def _resource_category_to_response(item: ResourceCategory) -> ResourceCategoryResponse:
     return ResourceCategoryResponse(
         id=item.id,
@@ -236,9 +292,12 @@ def _resource_category_to_response(item: ResourceCategory) -> ResourceCategoryRe
         group_key=item.group_key,
         description=item.description,
         icon=item.icon,
+        image_url=item.image_url,
+        display_template=item.display_template,
         action_type=item.action_type,
         action_value=item.action_value,
         button_text=item.button_text,
+        show_on_home=item.show_on_home,
         sort_order=item.sort_order,
     )
 
@@ -258,8 +317,29 @@ def _resource_item_to_response(item: ResourceItem) -> ResourceItemResponse:
         status_text=item.status_text,
         link_type=item.link_type,
         link_value=item.link_value,
+        primary_button_text=item.primary_button_text,
+        secondary_link_type=item.secondary_link_type,
+        secondary_link_value=item.secondary_link_value,
+        secondary_button_text=item.secondary_button_text,
         tags=_parse_json_list(item.tags_json),
         meta=_parse_json_object(item.meta_json),
+        show_on_home=item.show_on_home,
+        sort_order=item.sort_order,
+    )
+
+
+def _page_section_to_response(item: PageSection | None) -> PageSectionResponse | None:
+    if item is None:
+        return None
+
+    return PageSectionResponse(
+        id=item.id,
+        page_key=item.page_key,
+        section_key=item.section_key,
+        title=item.title,
+        subtitle=item.subtitle,
+        content=item.content,
+        extra_json=item.extra_json,
         sort_order=item.sort_order,
     )
 

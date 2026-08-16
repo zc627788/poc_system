@@ -92,10 +92,50 @@ def get_site_user_profile_by_id(db: Session, user_id: int) -> SiteUserProfile | 
     return _build_site_user_profile(user)
 
 
+def get_or_create_test_site_user_auth(db: Session) -> SiteUserAuthData:
+    test_phone = "13900000000"
+    user = get_site_user_by_phone(db, test_phone)
+    if user is None:
+        user = SiteUser(
+            name="测试用户",
+            phone=test_phone,
+            password_hash=get_password_hash("Test@123456"),
+            status=1,
+            auth_source="local",
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    user.last_login_at = datetime.utcnow()
+    db.commit()
+    db.refresh(user)
+    return _build_site_user_auth_data(user)
+
+
+def bridge_test_site_user_auth(db: Session, user_id: int, phone: str, auth_source: str | None = None) -> SiteUserAuthData:
+    normalized_phone = validate_phone(phone)
+    user = get_site_user_by_id(db, user_id)
+    if user is None:
+        raise ValueError("test user not found")
+    if user.phone != normalized_phone:
+        raise ValueError("test user identity mismatch")
+    if auth_source and user.auth_source != auth_source:
+        raise ValueError("test user auth source mismatch")
+    if user.status != 1:
+        raise ValueError("test user disabled")
+
+    user.last_login_at = datetime.utcnow()
+    db.commit()
+    db.refresh(user)
+    return _build_site_user_auth_data(user)
+
+
 def _build_site_user_auth_data(user: SiteUser) -> SiteUserAuthData:
     return SiteUserAuthData(
         access_token=create_access_token(
             subject=str(user.id),
+            expires_in_seconds=7 * 24 * 3600,
             extra_claims={"role": "site_user", "phone": user.phone, "name": user.name},
         ),
         user=_build_site_user_profile(user),
@@ -107,6 +147,9 @@ def _build_site_user_profile(user: SiteUser) -> SiteUserProfile:
         id=user.id,
         name=user.name,
         phone=user.phone,
+        real_name=user.real_name,
+        mobile_fuzzy=user.mobile_fuzzy,
+        auth_source=user.auth_source,
         status=user.status,
         created_at=user.created_at.isoformat(),
         last_login_at=user.last_login_at.isoformat() if user.last_login_at else None,

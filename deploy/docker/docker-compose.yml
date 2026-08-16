@@ -1,18 +1,33 @@
 services:
   mysql:
-    image: mysql:8.4
+    image: ${MYSQL_IMAGE:-docker.m.daocloud.io/library/mysql:8.4}
     container_name: opc-mysql
     restart: unless-stopped
+    command:
+      - mysqld
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --init-connect=SET NAMES utf8mb4 COLLATE utf8mb4_0900_ai_ci
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-opc_portal}
       MYSQL_USER: ${MYSQL_USER:-opc}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-opc123456}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123456}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
     volumes:
       - mysql_data:/var/lib/mysql
-      - ../sql:/docker-entrypoint-initdb.d:ro
+      - ../sql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ../sql/20260520_application_form_payload_fields.sql:/docker-entrypoint-initdb.d/99-20260520_application_form_payload_fields.sql:ro
+      - ../sql/20260714_billing_products.sql:/docker-entrypoint-initdb.d/100-20260714_billing_products.sql:ro
+      - ../sql/20260714_orders.sql:/docker-entrypoint-initdb.d/101-20260714_orders.sql:ro
+      - ../sql/20260714_payments.sql:/docker-entrypoint-initdb.d/102-20260714_payments.sql:ro
+      - ../sql/20260714_prepaid_consumptions.sql:/docker-entrypoint-initdb.d/103-20260714_prepaid_consumptions.sql:ro
+      - ../sql/20260715_wallet_recharge.sql:/docker-entrypoint-initdb.d/104-20260715_wallet_recharge.sql:ro
+      - ../sql/20260716_wallet_order_payment.sql:/docker-entrypoint-initdb.d/105-20260716_wallet_order_payment.sql:ro
+      - ../sql/20260722_trusted_dataspace_registration.sql:/docker-entrypoint-initdb.d/106-20260722_trusted_dataspace_registration.sql:ro
+    ports:
+      - "${MYSQL_BIND:-127.0.0.1}:${MYSQL_PORT:-3306}:3306"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root123456}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-P3306", "-uroot", "-p${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -22,21 +37,47 @@ services:
     build:
       context: ../../server
       dockerfile: Dockerfile
+      args:
+        PYTHON_IMAGE: ${PYTHON_IMAGE:-python:3.13-slim}
     container_name: opc-api
     restart: unless-stopped
     environment:
       APP_NAME: OPC Portal API
-      APP_ENV: production
+      APP_ENV: ${APP_ENV:-development}
       APP_DEBUG: "false"
       APP_HOST: 0.0.0.0
       APP_PORT: 8000
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-replace-me}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env}
       JWT_ALGORITHM: HS256
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
       MYSQL_USER: ${MYSQL_USER:-opc}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-opc123456}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-opc_portal}
+      SITE_PUBLIC_URL: ${SITE_PUBLIC_URL:-http://127.0.0.1:3000}
+      TEST_AUTH_BRIDGE_ENABLED: ${TEST_AUTH_BRIDGE_ENABLED:-false}
+      PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-mock}
+      MOCK_PAYMENT_ENABLED: ${MOCK_PAYMENT_ENABLED:-true}
+      MOCK_PAYMENT_SIGNING_SECRET: ${MOCK_PAYMENT_SIGNING_SECRET:-local-demo-only-change-me}
+      IXIAMEN_SSO_ENABLED: ${IXIAMEN_SSO_ENABLED:-false}
+      IXIAMEN_BASE_URI: ${IXIAMEN_BASE_URI:-}
+      IXIAMEN_CLIENT_ID: ${IXIAMEN_CLIENT_ID:-}
+      IXIAMEN_CLIENT_SECRET: ${IXIAMEN_CLIENT_SECRET:-}
+      IXIAMEN_REDIRECT_URI: ${IXIAMEN_REDIRECT_URI:-}
+      IXIAMEN_SCOPE: ${IXIAMEN_SCOPE:-basic name mobile}
+      IXIAMEN_CHANNEL: ${IXIAMEN_CHANNEL:-IXM_PC}
+      IXIAMEN_POST_LOGIN_REDIRECT: ${IXIAMEN_POST_LOGIN_REDIRECT:-/}
+      IXIAMEN_LOGOUT_REDIRECT_URI: ${IXIAMEN_LOGOUT_REDIRECT_URI:-}
+      TRUSTED_DATASPACE_ENABLED: ${TRUSTED_DATASPACE_ENABLED:-false}
+      TRUSTED_DATASPACE_BASE_URL: ${TRUSTED_DATASPACE_BASE_URL:-}
+      TRUSTED_DATASPACE_X_TOKEN: ${TRUSTED_DATASPACE_X_TOKEN:-}
+      TRUSTED_DATASPACE_DATA_KEY: ${TRUSTED_DATASPACE_DATA_KEY:-}
+      TRUSTED_DATASPACE_PORTAL_URL: ${TRUSTED_DATASPACE_PORTAL_URL:-}
+      TRUSTED_DATASPACE_CA_BUNDLE: ${TRUSTED_DATASPACE_CA_BUNDLE:-}
+      TRUSTED_DATASPACE_CONNECT_TIMEOUT_SECONDS: ${TRUSTED_DATASPACE_CONNECT_TIMEOUT_SECONDS:-5}
+      TRUSTED_DATASPACE_READ_TIMEOUT_SECONDS: ${TRUSTED_DATASPACE_READ_TIMEOUT_SECONDS:-15}
+    volumes:
+      - api_uploads:/app/uploads
     depends_on:
       mysql:
         condition: service_healthy
@@ -52,6 +93,7 @@ services:
       context: ../../web
       dockerfile: Dockerfile
       args:
+        NODE_IMAGE: ${NODE_IMAGE:-node:22-alpine}
         INTERNAL_API_BASE_URL: http://api:8000/api
         NEXT_PUBLIC_API_BASE_URL: /api
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost}
@@ -72,18 +114,25 @@ services:
       context: ../../admin
       dockerfile: Dockerfile
       args:
+        NODE_IMAGE: ${NODE_IMAGE:-node:22-alpine}
+        NGINX_IMAGE: ${NGINX_IMAGE:-nginx:1.27-alpine}
         VITE_API_BASE_URL: /api
+        VITE_SITE_BASE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost}
     container_name: opc-admin
     restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${ADMIN_BIND:-127.0.0.1}:${ADMIN_PORT:-8081}:80"
 
   nginx:
-    image: nginx:1.27-alpine
+    image: ${NGINX_IMAGE:-nginx:1.27-alpine}
     container_name: opc-nginx
     restart: unless-stopped
     depends_on:
       - api
       - web
-      - admin
     ports:
       - "80:80"
     volumes:
@@ -91,3 +140,4 @@ services:
 
 volumes:
   mysql_data:
+  api_uploads:

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Paperclip, Phone, UserRound } from "lucide-react";
+import { ChevronRight, Phone, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { fetchCurrentSiteUser, getCachedSiteUser, getSiteAuthHeaders } from "@/lib/site-auth";
@@ -13,7 +13,7 @@ type FormState = {
   attachmentName: string;
 };
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000/api";
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "/api";
 const phonePattern = /^1[3-9]\d{9}$/;
 
 async function submitFeedback(payload: FeedbackSubmitPayload): Promise<FeedbackSubmitResult> {
@@ -53,23 +53,36 @@ export function FeedbackPageView() {
     void fetchCurrentSiteUser()
       .then((profile) => {
         if (!profile) {
+          // token 已失效或已退出，清空用户显示
+          setCurrentUser(null);
+          setFormState((prev) => ({ ...prev, phone: "" }));
           return;
         }
         setCurrentUser(profile);
         setFormState((prev) => ({ ...prev, phone: profile.phone }));
       })
       .catch(() => undefined);
+
+    // 监听全局登出/登入事件，实时同步用户状态
+    const handleAuthChange = () => {
+      const user = getCachedSiteUser();
+      setCurrentUser(user);
+      setFormState((prev) => ({ ...prev, phone: user?.phone || "" }));
+    };
+
+    window.addEventListener("opc-site-auth-change", handleAuthChange);
+    return () => window.removeEventListener("opc-site-auth-change", handleAuthChange);
   }, []);
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!formState.subject.trim() || !formState.content.trim()) {
-      setMessage({ type: "error", text: "请填写主题和反馈内容后再提交。" });
+      setMessage({ type: "error", text: "请先填写您的需求主题和具体说明，方便我们尽快协助您。" });
       return;
     }
 
     if (!formState.phone.trim() || !phonePattern.test(formState.phone.trim())) {
-      setMessage({ type: "error", text: "请填写合法的联系电话。" });
+      setMessage({ type: "error", text: "请填写正确的联系电话，方便我们及时与您联系。" });
       return;
     }
 
@@ -83,7 +96,7 @@ export function FeedbackPageView() {
         attachment_name: formState.attachmentName.trim() || null,
         attachment_url: null,
       });
-      setMessage({ type: "success", text: "反馈提交成功，我们会尽快处理并在后台跟进。" });
+      setMessage({ type: "success", text: "已收到您的联系信息与需求说明，我们会尽快安排专人跟进。" });
       setFormState({
         subject: "",
         content: "",
@@ -99,26 +112,22 @@ export function FeedbackPageView() {
   };
 
   return (
-    <div className="min-h-full bg-[#f5f7fa] pb-16">
-      <div className="mb-8 bg-[#eef3fc] px-4 py-12">
-        <div className="container mx-auto max-w-4xl">
-          <h1 className="mb-3 text-[28px] font-bold text-[#0052d9] md:text-[32px]">意见反馈</h1>
-          <p className="text-lg text-[#0052d9] opacity-90">倾听您的声音，共同打磨更顺畅的门户与服务体验</p>
-        </div>
-      </div>
-
-      <div className="container mx-auto mb-16 max-w-4xl px-4">
-        <div className="mb-8 flex items-center gap-2 text-[14px] font-medium text-gray-900">
+    <div
+      className="min-h-full bg-[#f5f7fa] pb-16"
+      style={{ fontFamily: '"PingFang SC", "Microsoft YaHei", sans-serif' }}
+    >
+      <div className="container mx-auto mb-16 max-w-4xl px-4 pt-8 lg:min-w-[1200px] lg:pt-10">
+        <div className="mb-6 flex flex-wrap items-center gap-2 text-[12px] font-medium text-[#8898b6] sm:mb-8">
           <Link className="transition-colors hover:text-[#0052d9]" href="/">
             首页
           </Link>
-          <ChevronRight className="text-gray-400" size={16} />
-          <span className="text-[#0052d9]">意见反馈</span>
+          <ChevronRight size={14} />
+          <span className="text-[#0052d9]">联系我们</span>
         </div>
 
-        <h2 className="mb-6 flex items-center text-[22px] font-bold text-gray-900">
+        <h2 className="mb-6 flex items-center text-[22px] text-gray-900">
           <span className="mr-3 inline-block h-6 w-1.5 rounded-sm bg-[#0052d9]" />
-          问题与建议
+          联系我们
         </h2>
 
         <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm md:p-8">
@@ -129,87 +138,60 @@ export function FeedbackPageView() {
                   <UserRound size={18} />
                 </div>
                 <div>
-                  <div className="font-semibold text-[#0f172a]">{currentUser.name}</div>
+                  <div className="text-[#0f172a]">{currentUser.name}</div>
                   <div className="mt-1 flex items-center gap-1.5 text-[#56749d]">
                     <Phone size={14} />
                     {currentUser.phone}
                   </div>
                 </div>
               </div>
-              <div className="text-[12px] text-[#5f7fa8]">已登录状态下提交反馈，系统会自动带出当前手机号。</div>
+              <div className="text-[12px] text-[#5f7fa8]">欢迎告诉我们您当前遇到的问题或需要的协助，我们会尽快安排专人跟进，为您提供支持。</div>
             </div>
-          ) : (
-            <div className="mb-6 rounded-2xl border border-[#e7eefb] bg-[#f8fbff] px-4 py-3 text-[13px] text-[#587497]">
-              未登录也可以提交反馈；若先
-              <Link className="mx-1 font-semibold text-[#0052d9]" href="/login">
-                登录
-              </Link>
-              ，系统会自动带出您的手机号并同步到后台用户信息。
-            </div>
-          )}
+          ) : null}
 
           <form className="space-y-6" onSubmit={onSubmit}>
             <div>
-              <label className="mb-2 block text-[14px] font-bold text-gray-700">
-                主题 <span className="ml-1 text-red-500">*</span>
+              <label className="mb-2 block text-[14px] text-gray-700">
+                <span className="mr-1 text-red-500">*</span>需求主题
               </label>
               <input
-                className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-[14px] outline-none transition-all placeholder:text-gray-400 focus:border-[#0052d9] focus:ring-2 focus:ring-blue-100"
+                className="w-full rounded-2xl border border-gray-300 px-3.5 py-2.5 text-[13px] outline-none transition-all placeholder:text-gray-400 focus:border-[#0052d9] focus:ring-2 focus:ring-blue-100 sm:px-4 sm:py-3 sm:text-[14px]"
                 maxLength={20}
                 onChange={(event) => setFormState((prev) => ({ ...prev, subject: event.target.value }))}
-                placeholder="请输入反馈主题（20字以内）"
+                placeholder="请简要填写您需要协助的事项"
                 type="text"
                 value={formState.subject}
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-[14px] font-bold text-gray-700">
-                反馈内容 <span className="ml-1 text-red-500">*</span>
+              <label className="mb-2 block text-[14px] text-gray-700">
+                <span className="mr-1 text-red-500">*</span>具体说明
               </label>
               <textarea
-                className="w-full resize-y rounded-2xl border border-gray-300 px-4 py-3 text-[14px] outline-none transition-all placeholder:text-gray-400 focus:border-[#0052d9] focus:ring-2 focus:ring-blue-100"
+                className="w-full resize-y rounded-2xl border border-gray-300 px-3.5 py-2.5 text-[13px] outline-none transition-all placeholder:text-gray-400 focus:border-[#0052d9] focus:ring-2 focus:ring-blue-100 sm:px-4 sm:py-3 sm:text-[14px]"
                 onChange={(event) => setFormState((prev) => ({ ...prev, content: event.target.value }))}
-                placeholder="请详细描述您的意见、建议或使用中遇到的问题..."
+                placeholder="请详细描述您当前遇到的情况，或希望我们协助处理的事项..."
                 rows={6}
                 value={formState.content}
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-[14px] font-bold text-gray-700">
-                联系电话 <span className="ml-1 text-red-500">*</span>
+              <label className="mb-2 block text-[14px] text-gray-700">
+                <span className="mr-1 text-red-500">*</span>联系电话
               </label>
               <input
-                className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-[14px] outline-none transition-all placeholder:text-gray-400 focus:border-[#0052d9] focus:ring-2 focus:ring-blue-100 disabled:bg-gray-50 disabled:text-gray-500"
+                className="w-full rounded-2xl border border-gray-300 px-3.5 py-2.5 text-[13px] outline-none transition-all placeholder:text-gray-400 focus:border-[#0052d9] focus:ring-2 focus:ring-blue-100 disabled:bg-gray-50 disabled:text-gray-500 sm:px-4 sm:py-3 sm:text-[14px]"
                 onChange={(event) => setFormState((prev) => ({ ...prev, phone: event.target.value }))}
-                placeholder="请输入您的联系电话"
+                placeholder="请填写方便联系您的手机号"
                 readOnly={Boolean(currentUser)}
                 type="tel"
                 value={formState.phone}
               />
             </div>
 
-            <div>
-              <label className="mb-2 block text-[14px] font-bold text-gray-700">
-                附件名称 <span className="ml-1 text-gray-400 font-normal">（可选）</span>
-              </label>
-              <div className="rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 py-6">
-                <div className="mb-3 flex items-center justify-center gap-2 text-gray-500">
-                  <Paperclip size={18} />
-                  <span className="text-[14px]">首版先记录附件名称，暂不上传文件本体</span>
-                </div>
-                <div className="px-6">
-                  <input
-                    className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-[14px] outline-none transition-all placeholder:text-gray-400 focus:border-[#0052d9] focus:ring-2 focus:ring-blue-100"
-                    onChange={(event) => setFormState((prev) => ({ ...prev, attachmentName: event.target.value }))}
-                    placeholder="例如：问题截图.png / 需求说明.pdf"
-                    type="text"
-                    value={formState.attachmentName}
-                  />
-                </div>
-              </div>
-            </div>
+
 
             {message ? (
               <div
@@ -225,11 +207,12 @@ export function FeedbackPageView() {
 
             <div className="pt-2">
               <button
-                className="rounded-2xl bg-[#0052d9] px-8 py-3 text-[14px] font-medium text-white shadow-sm transition-all hover:bg-blue-700 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex h-[43px] min-w-[113px] items-center justify-center rounded-[5px] bg-[#BEEC00] px-[16px] whitespace-nowrap text-center text-[14px] text-black transition-all hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={submitting}
+                style={{ fontFamily: '"PingFang SC", "Microsoft YaHei", sans-serif', fontStyle: "normal", textTransform: "none" }}
                 type="submit"
               >
-                {submitting ? "提交中..." : "提交反馈"}
+                {submitting ? "提交中..." : "提交给我们"}
               </button>
             </div>
           </form>

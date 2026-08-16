@@ -1,6 +1,5 @@
 import { DeleteOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
 import {
-  Alert,
   Button,
   Card,
   Form,
@@ -16,6 +15,8 @@ import {
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useEffect, useMemo, useState } from "react";
+import ReactQuill from "react-quill-new";
+import "react-quill-new/dist/quill.snow.css";
 import { useParams } from "react-router-dom";
 import { adminApi } from "../api";
 import type { ApiResponse, PageSection } from "../types";
@@ -35,72 +36,97 @@ type PageConfig = {
   title: string;
   description: string;
   sectionKeys: string[];
-  jsonHint: string;
+  extraFieldsHint?: string;
+  extraFieldsTitle?: string;
+};
+
+type PageSectionsPageProps = {
+  pageKeyOverride?: string;
+  titleOverride?: string;
+  descriptionOverride?: string;
+  allowedSectionKeys?: string[];
+  sectionUsageMap?: Record<string, string>;
 };
 
 const pageConfigMap: Record<string, PageConfig> = {
   home: {
     title: "首页区块",
-    description: "对应首页的社区简介摘要、AI 资源集市摘要和场景供需对接轮播区块。",
-    sectionKeys: ["community_intro", "marketplace_summary", "scenario_1", "scenario_2", "scenario_3"],
-    jsonHint: '{"button_text":"了解更多","action_type":"internal","action_value":"/community","image_url":"https://..."}',
+    description: "这里维护首页社区简介、资源市集、场景供需等展示区块。",
+    sectionKeys: [
+      "community_intro",
+      "marketplace_summary",
+      "marketplace_group_data",
+      "marketplace_group_tools",
+      "marketplace_group_compute",
+      "scenario_1",
+      "scenario_2",
+      "scenario_3",
+    ],
+    extraFieldsTitle: "补充展示设置",
+    extraFieldsHint: "如需补充按钮文字、跳转地址、图片地址等信息，可在这里填写。",
   },
   news: {
     title: "最新动态页头",
     description: "对应最新动态页头部标题和副标题，资讯列表内容请在“最新动态列表”中维护。",
     sectionKeys: ["hero"],
-    jsonHint: "{}",
+    extraFieldsTitle: "补充展示设置",
+    extraFieldsHint: "如需补充背景图、按钮或其他展示信息，可在这里填写。",
   },
   community: {
     title: "社区简介页",
     description: "对应社区简介页头部、介绍、统计数据、基地信息和入驻条件。",
     sectionKeys: ["hero", "intro", "stats", "base_soft2", "base_soft3", "requirements"],
-    jsonHint: '{"items":[{"value":"300+","label":"入驻团队"}],"image_url":"https://...","address":"厦门软件园二期观日路32号"}',
+    extraFieldsTitle: "补充展示设置",
+    extraFieldsHint: "如需补充统计数字、图片地址、地址说明等信息，可在这里填写。",
   },
   services: {
     title: "创业服务页",
     description: "对应政策筛选、政策卡片和创业配套服务卡片。",
     sectionKeys: ["hero", "policy_filters", "policy_cards", "support_cards"],
-    jsonHint:
-      '{"type_options":["高校毕业生"],"stage_options":["AI电商"],"items":[{"title":"高校毕业生见习补贴","desc":"...","tags":["高校毕业生"]}]}',
+    extraFieldsTitle: "补充展示设置",
+    extraFieldsHint: "如需补充筛选项、卡片列表或按钮信息，可在这里填写。",
   },
   setup: {
-    title: "OPC开办页",
+    title: "OPC工商注册页",
     description: "对应 OPC 开办页头部和流程图所需的全部配置数据。",
     sectionKeys: ["hero", "journey"],
-    jsonHint:
-      '{"start":{"title":"申请人提出\\n企业开办申请"},"application_options":[{"title":"一网通办平台","desc":"全流程网上申报"}]}',
+    extraFieldsTitle: "补充展示设置",
+    extraFieldsHint: "如需补充流程步骤、办理方式或按钮信息，可在这里填写。",
   },
   financing: {
     title: "融资对接页",
     description: "对应页头、引导文案和基金卡片。",
     sectionKeys: ["hero", "intro", "fund_cards"],
-    jsonHint: '{"items":[{"icon":"Coins","title":"人工智能产业投资基金","desc":"...","button_text":"立即申请"}]}',
+    extraFieldsTitle: "补充展示设置",
+    extraFieldsHint: "如需补充基金卡片、按钮或图标信息，可在这里填写。",
   },
   settlement: {
     title: "安居落户页",
     description: "对应页头、说明区块和安居服务卡片。",
     sectionKeys: ["hero", "intro", "housing_cards"],
-    jsonHint:
-      '{"image_url":"https://...","items":[{"icon":"Home","title":"人才房申请","desc":"...","action_value":"https://..."}]}',
+    extraFieldsTitle: "补充展示设置",
+    extraFieldsHint: "如需补充图片、服务卡片或跳转信息，可在这里填写。",
   },
   marketplace: {
     title: "资源集市页",
     description: "对应资源集市页头部标题和副标题，资源卡片请在资源分类和资源条目中维护。",
-    sectionKeys: ["hero"],
-    jsonHint: "{}",
+    sectionKeys: ["hero", "marketplace_group_data", "marketplace_group_tools", "marketplace_group_compute"],
+    extraFieldsTitle: "补充展示设置",
+    extraFieldsHint: "如需补充查看更多按钮、图片地址或说明信息，可在这里填写。",
   },
   api_market: {
     title: "API市场页",
     description: "对应 API 市场页辅助标题说明，分类和卡片内容在资源模块中维护。",
     sectionKeys: ["hero"],
-    jsonHint: "{}",
+    extraFieldsTitle: "补充展示设置",
+    extraFieldsHint: "如需补充背景图、按钮或其他展示信息，可在这里填写。",
   },
   mcp_market: {
     title: "MCP市场页",
     description: "对应 MCP 市场页标题和说明文案，卡片内容在资源模块中维护。",
     sectionKeys: ["hero"],
-    jsonHint: "{}",
+    extraFieldsTitle: "补充展示设置",
+    extraFieldsHint: "如需补充背景图、按钮或其他展示信息，可在这里填写。",
   },
 };
 
@@ -115,10 +141,23 @@ const defaultValues: SectionFormValues = {
   is_published: 1,
 };
 
-export function PageSectionsPage() {
+export function PageSectionsPage({
+  pageKeyOverride,
+  titleOverride,
+  descriptionOverride,
+  allowedSectionKeys,
+  sectionUsageMap = {},
+}: PageSectionsPageProps = {}) {
   const { pageKey = "home" } = useParams();
-  const resolvedPageKey = pageConfigMap[pageKey] ? pageKey : "home";
-  const config = pageConfigMap[resolvedPageKey];
+  const rawPageKey = pageKeyOverride || pageKey;
+  const resolvedPageKey = pageConfigMap[rawPageKey] ? rawPageKey : "home";
+  const baseConfig = pageConfigMap[resolvedPageKey];
+  const config = {
+    ...baseConfig,
+    title: titleOverride || baseConfig.title,
+    description: descriptionOverride || baseConfig.description,
+    sectionKeys: allowedSectionKeys || baseConfig.sectionKeys,
+  };
   const [form] = Form.useForm<SectionFormValues>();
   const [items, setItems] = useState<PageSection[]>([]);
   const [loading, setLoading] = useState(false);
@@ -127,9 +166,17 @@ export function PageSectionsPage() {
   const [editingItem, setEditingItem] = useState<PageSection | null>(null);
 
   const sectionLabelMap = useMemo(
-    () => Object.fromEntries(config.sectionKeys.map((key) => [key, key])),
-    [config.sectionKeys]
+    () => Object.fromEntries(config.sectionKeys.map((key) => [key, sectionUsageMap[key] || key])),
+    [config.sectionKeys, sectionUsageMap]
   );
+
+  const visibleItems = useMemo(() => {
+    if (!allowedSectionKeys || allowedSectionKeys.length === 0) {
+      return items;
+    }
+
+    return items.filter((item) => allowedSectionKeys.includes(item.section_key));
+  }, [allowedSectionKeys, items]);
 
   const loadItems = async () => {
     setLoading(true);
@@ -140,7 +187,7 @@ export function PageSectionsPage() {
       setItems(response.data.data);
     } catch (error) {
       console.error("Failed to load page sections", error);
-      message.error("页面区块加载失败");
+      message.error("栏目内容加载失败");
     } finally {
       setLoading(false);
     }
@@ -180,11 +227,11 @@ export function PageSectionsPage() {
   const handleDelete = async (id: number) => {
     try {
       await adminApi.delete(`/admin/page-sections/${id}`);
-      message.success("页面区块已删除");
+      message.success("栏目内容已删除");
       await loadItems();
     } catch (error) {
       console.error("Failed to delete page section", error);
-      message.error("页面区块删除失败");
+      message.error("栏目内容删除失败");
     }
   };
 
@@ -194,43 +241,51 @@ export function PageSectionsPage() {
       const payload = { ...values, page_key: resolvedPageKey };
       if (editingItem) {
         await adminApi.put(`/admin/page-sections/${editingItem.id}`, payload);
-        message.success("页面区块已更新");
+        message.success("栏目内容已更新");
       } else {
         await adminApi.post("/admin/page-sections", payload);
-        message.success("页面区块已新增");
+        message.success("栏目内容已新增");
       }
       closeModal();
       await loadItems();
     } catch (error) {
       console.error("Failed to save page section", error);
-      message.error("页面区块保存失败");
+      message.error("栏目内容保存失败");
     } finally {
       setSaving(false);
     }
   };
+
+  const isMarketplace = resolvedPageKey === "marketplace" || resolvedPageKey === "api_market" || resolvedPageKey === "mcp_market";
 
   const columns: ColumnsType<PageSection> = [
     {
       title: "区块标识",
       dataIndex: "section_key",
       key: "section_key",
-      width: 180,
-      render: (value: string) => <Tag color="blue">{sectionLabelMap[value] || value}</Tag>,
+      width: 220,
+      fixed: "left",
+      render: (value: string) => (
+        <Tag color="blue" style={{ whiteSpace: "normal", wordWrap: "break-word" }}>
+          {sectionLabelMap[value] || value}
+        </Tag>
+      ),
     },
-    { title: "标题", dataIndex: "title", key: "title", width: 220 },
-    { title: "副标题", dataIndex: "subtitle", key: "subtitle", ellipsis: true },
+    { title: "标题", dataIndex: "title", key: "title", width: 140 },
+    { title: "副标题", dataIndex: "subtitle", key: "subtitle", width: 100, ellipsis: true },
     { title: "排序", dataIndex: "sort_order", key: "sort_order", width: 80 },
     {
       title: "状态",
       dataIndex: "is_published",
       key: "is_published",
-      width: 100,
+      width: 90,
       render: (value: number) => (value === 1 ? <Tag color="success">已发布</Tag> : <Tag>草稿</Tag>),
     },
     {
       title: "操作",
       key: "actions",
-      width: 150,
+      width: 140,
+      fixed: "right",
       render: (_, record) => (
         <Space>
           <Button icon={<EditOutlined />} onClick={() => openEditModal(record)} type="link">
@@ -249,7 +304,7 @@ export function PageSectionsPage() {
   return (
     <div className="admin-page">
       <Card className="admin-page-card">
-        <div className="admin-toolbar">
+        <div className="admin-toolbar" style={{ maxWidth: 1200 }}>
           <div>
             <h2 style={{ marginTop: 0, marginBottom: 8 }}>{config.title}</h2>
             <p className="admin-muted" style={{ marginBottom: 0 }}>
@@ -257,35 +312,28 @@ export function PageSectionsPage() {
             </p>
           </div>
           <Button icon={<PlusOutlined />} onClick={openCreateModal} type="primary">
-            新增页面区块
+            新增栏目内容
           </Button>
         </div>
 
         <div className="admin-tags" style={{ marginTop: 16 }}>
           {config.sectionKeys.map((key) => (
             <Tag color="blue" key={key}>
-              {key}
+              {sectionUsageMap[key] || key}
             </Tag>
           ))}
         </div>
 
-        <Alert
-          description={`这里的 page_key 固定为 ${resolvedPageKey}。为了和原型保持稳定映射，建议优先使用上面这些 section_key。`}
-          message="字段映射提示"
-          showIcon
-          style={{ marginTop: 16 }}
-          type="info"
-        />
       </Card>
 
       <Card className="admin-page-card">
         <Table
           columns={columns}
-          dataSource={items}
+          dataSource={visibleItems}
           loading={loading}
           pagination={false}
           rowKey="id"
-          scroll={{ x: 1120 }}
+          scroll={{ x: 1000 }}
         />
       </Card>
 
@@ -299,32 +347,54 @@ export function PageSectionsPage() {
         width={860}
       >
         <Form form={form} initialValues={defaultValues} layout="vertical" onFinish={handleSubmit} requiredMark={false}>
-          <Form.Item label="页面标识" name="page_key">
+          <Form.Item hidden label="页面标识" name="page_key">
             <Input disabled />
           </Form.Item>
-          <Form.Item label="区块标识" name="section_key" rules={[{ required: true, message: "请输入区块标识" }]}>
-            <Input placeholder={`例如：${config.sectionKeys.join(" / ")}`} />
+          <Form.Item label="所属栏目" name="section_key" rules={[{ required: true, message: "请选择所属栏目" }]}>
+            <Select
+              options={config.sectionKeys.map((key) => ({
+                label: sectionUsageMap[key] || key,
+                value: key,
+              }))}
+              placeholder="请选择所属栏目"
+            />
           </Form.Item>
-          <Form.Item label="区块标题" name="title" rules={[{ required: true, message: "请输入区块标题" }]}>
-            <Input placeholder="请输入区块标题" />
+          <Form.Item label="栏目标题" name="title" rules={[{ required: true, message: "请输入栏目标题" }]}>
+            <Input placeholder="请输入栏目标题" />
           </Form.Item>
-          <Form.Item label="区块副标题" name="subtitle">
-            <Input placeholder="请输入区块副标题" />
+          <Form.Item label="栏目副标题" name="subtitle">
+            <Input placeholder="请输入栏目副标题" />
           </Form.Item>
-          <Form.Item label="正文内容" name="content">
-            <Input.TextArea placeholder="请输入正文内容，如前台会读取 HTML，请按原型格式维护。" rows={6} />
-          </Form.Item>
-          <Form.Item label="扩展 JSON" name="extra_json">
-            <Input.TextArea placeholder={config.jsonHint} rows={8} />
-          </Form.Item>
-          <Form.Item label="排序" name="sort_order">
+          {!isMarketplace && (
+            <>
+              <Form.Item label="正文内容" name="content" style={{ height: 280, marginBottom: 60 }}>
+                <ReactQuill
+                  theme="snow"
+                  style={{ height: 240 }}
+                  modules={{
+                    toolbar: [
+                      [{ header: [1, 2, 3, false] }],
+                      ['bold', 'italic', 'underline', 'strike'],
+                      [{ list: 'ordered' }, { list: 'bullet' }],
+                      ['link', 'clean']
+                    ],
+                  }}
+                  placeholder="请输入正文内容（支持基础富文本格式）。"
+                />
+              </Form.Item>
+              <Form.Item extra={config.extraFieldsHint} label={config.extraFieldsTitle || "补充展示设置"} name="extra_json">
+                <Input.TextArea placeholder="如有额外展示信息，可在这里填写。" rows={8} />
+              </Form.Item>
+            </>
+          )}
+          <Form.Item extra="数字越小，排序越靠前。" label="排序" name="sort_order">
             <InputNumber min={0} style={{ width: "100%" }} />
           </Form.Item>
-          <Form.Item label="发布状态" name="is_published">
+          <Form.Item label="显示状态" name="is_published">
             <Select
               options={[
-                { label: "已发布", value: 1 },
-                { label: "草稿", value: 0 },
+                { label: "显示", value: 1 },
+                { label: "隐藏", value: 0 },
               ]}
             />
           </Form.Item>

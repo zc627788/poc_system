@@ -1,172 +1,181 @@
-# OPC 门户 + CMS 系统
+# Business Portal & Operations CMS
 
-一个基于 `Next.js 15 + React + FastAPI + MySQL + Docker` 的门户网站与内容管理后台项目。
+A production-oriented full-stack portal with a public Next.js website, a React administration console, a FastAPI service layer, MySQL persistence, and Docker-based deployment.
 
-当前仓库包含：
+This repository is a portfolio-ready reference implementation of a real business platform. It demonstrates content operations, member workflows, application reviews, a resource marketplace, prepaid billing, wallet accounting, payment reconciliation, and optional third-party integrations in one codebase.
 
-- `web`：门户前台
-- `admin`：CMS 管理后台
-- `server`：FastAPI 后端
-- `deploy`：Docker、Nginx、SQL 初始化文件
+> The public repository contains demonstration data and disabled integration adapters only. Deployment credentials, customer data, and private infrastructure settings are intentionally excluded.
 
-## 功能范围
+## Screenshots
 
-- 门户首页与原型稿样式还原
-- 最新动态、社区简介、创业服务、OPC 开办、融资对接、安居落户
-- 资源集市 / API 市场 / MCP 市场
-- 前台手机号注册、登录、反馈提交
-- 后台内容管理、反馈管理、前台用户管理
-- Docker 一体化部署
-- MySQL 首次启动自动导入演示数据
+| Public portal | Member sign-in | Admin console |
+| --- | --- | --- |
+| ![Public portal](docs/screenshots/web-home.png) | ![Member sign-in](docs/screenshots/web-login.png) | ![Admin console](docs/screenshots/admin-login.png) |
 
-## 运行截图
+## What it demonstrates
 
-### 门户首页
+- Responsive public portal with CMS-driven navigation, banners, news, service pages, and marketplace content
+- Separate React/Ant Design operations console with role-protected routes
+- Member registration, sign-in, session handling, and an optional SSO adapter
+- Multi-step business applications with drafts, uploads, validation, review records, and status tracking
+- Resource marketplace for data, models, APIs, MCP services, tools, and compute products
+- Product catalog, order lifecycle, mock payment provider, notification handling, and reconciliation
+- Prepaid balances, consumption imports, ledger entries, wallet recharges, and wallet payments
+- Optional trusted-data-space registration adapter with encrypted sensitive fields
+- MySQL bootstrap data plus ordered, idempotent SQL upgrade scripts
+- Docker Compose deployment with the public site and admin console exposed separately
 
-![门户首页](docs/screenshots/web-home.png)
+## Architecture
 
-### 前台登录页
-
-![前台登录页](docs/screenshots/web-login.png)
-
-### 后台登录页
-
-![后台登录页](docs/screenshots/admin-login.png)
-
-## 演示账号
-
-### 后台管理员
-
-- 账号：`admin`
-- 密码：`Admin@123456`
-
-### 前台演示用户
-
-- 手机号：`13900001111`
-- 密码：`Demo@123456`
-
-## SQL 初始化说明
-
-当前仓库已经提供完整的演示数据库初始化文件：
-
-- [deploy/sql/init.sql](deploy/sql/init.sql)
-
-这份 SQL 不是空壳表结构，而是当前项目的完整演示数据导出，包含：
-
-- 表结构
-- 核心站点配置
-- 首页与内容页演示数据
-- 资源市场演示数据
-- 后台管理员账号
-- 前台演示用户
-- 反馈演示数据
-
-Docker 模式下，MySQL 在“空数据卷首次启动”时会自动执行这份 SQL。
-
-注意：
-
-- 只有第一次初始化空数据库时会自动执行
-- 如果你之前已经跑过一次，再次 `up -d` 不会重复导入
-- 如果你想重新回到这份演示数据，需要执行 `docker compose down -v` 后再重新启动
-
-## 推荐启动方式：Docker
-
-### 1. 进入项目目录
-
-```powershell
-Set-Location C:\Users\Jackson Chan\Desktop\OPC项目原型图20260330
+```mermaid
+flowchart LR
+    U["Public users"] --> N["Nginx :80"]
+    N --> W["Next.js web"]
+    N --> P["FastAPI public API"]
+    O["Operations staff / VPN"] --> A["React admin :8081"]
+    A --> M["FastAPI admin API"]
+    W --> P
+    P --> D[(MySQL)]
+    M --> D
+    P -. optional .-> X["SSO / SMS / payment / data-space adapters"]
 ```
 
-### 2. 准备根目录 `.env`
+The public reverse proxy exposes the website and `/api/public/*`. The administration console uses a separate bind address and port so production deployments can restrict it to localhost, a private network, or a VPN.
 
-如果还没有 `.env`，先复制：
+## Technology
 
-```powershell
-Copy-Item .env.example .env
+| Layer | Main technology |
+| --- | --- |
+| Public web | Next.js 15, React 19, TypeScript, Tailwind CSS |
+| Admin console | React 18, Vite, TypeScript, Ant Design, Axios |
+| API | Python, FastAPI, SQLAlchemy, Pydantic |
+| Data | MySQL 8.4, SQL bootstrap and upgrade scripts |
+| Delivery | Docker Compose, Nginx, health checks |
+| Tests | Pytest, FastAPI TestClient, service-level test doubles |
+
+## Repository layout
+
+```text
+.
+├── web/                 # Public Next.js application
+├── admin/               # Private operations console
+├── server/              # FastAPI application and tests
+├── deploy/
+│   ├── docker/          # Local and production Compose definitions
+│   ├── nginx/           # Public reverse-proxy configuration
+│   └── sql/             # Bootstrap schema/data and upgrade scripts
+└── docs/screenshots/    # Portfolio screenshots
 ```
 
-### 3. 一键启动
+## Quick start with Docker
 
-```powershell
-docker compose -f deploy/docker/docker-compose.yml up -d --build
+Requirements: Docker Engine with Docker Compose v2.
+
+1. Create the local environment file:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   On PowerShell:
+
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+
+2. Replace `MYSQL_PASSWORD`, `MYSQL_ROOT_PASSWORD`, `JWT_SECRET_KEY`, and `MOCK_PAYMENT_SIGNING_SECRET` in `.env` with random values. Optional external integrations are disabled by default.
+
+3. Build and start the stack:
+
+   ```bash
+   docker compose --env-file .env -f deploy/docker/docker-compose.yml up -d --build
+   ```
+
+4. Open the services:
+
+   - Public portal: `http://localhost/`
+   - Admin console: `http://127.0.0.1:8081/`
+   - Health check: `http://localhost/health`
+
+5. Stop the stack without deleting database data:
+
+   ```bash
+   docker compose --env-file .env -f deploy/docker/docker-compose.yml down
+   ```
+
+The SQL files in `deploy/sql` are mounted only for first-time database initialization. For an existing database, apply the dated scripts in filename order; do not recreate the data volume.
+
+## Local development
+
+Start MySQL from Docker, then run each application in its own terminal.
+
+```bash
+docker compose --env-file .env -f deploy/docker/docker-compose.local.yml up -d mysql
 ```
 
-### 4. 访问地址
+API:
 
-- 前台首页：`http://127.0.0.1/`
-- 前台登录：`http://127.0.0.1/login`
-- 后台登录：`http://127.0.0.1/admin/login`
-- 健康检查：`http://127.0.0.1/health`
-
-### 5. 查看状态
-
-```powershell
-docker compose -f deploy/docker/docker-compose.yml ps
+```bash
+cd server
+python -m venv .venv
+# Windows: .venv\Scripts\activate
+# macOS/Linux: source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-## 本地开发启动
+Public web:
 
-如果你不是部署，而是需要本地联调开发，可以分别启动：
-
-### 1. 启动 MySQL
-
-```powershell
-Set-Location C:\Users\Jackson Chan\Desktop\OPC项目原型图20260330
-docker compose -f deploy/docker/docker-compose.yml up -d mysql
+```bash
+cd web
+npm ci
+npm run dev
 ```
 
-### 2. 启动后端
+Admin console:
 
-```powershell
-Set-Location C:\Users\Jackson Chan\Desktop\OPC项目原型图20260330\server
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```bash
+cd admin
+npm ci
+npm run dev
 ```
 
-### 3. 启动前台
+## Verification
 
-```powershell
-Set-Location C:\Users\Jackson Chan\Desktop\OPC项目原型图20260330\web
-npm.cmd run dev
+```bash
+cd server
+pip install pytest
+python -m pytest tests
 ```
 
-### 4. 启动后台
-
-```powershell
-Set-Location C:\Users\Jackson Chan\Desktop\OPC项目原型图20260330\admin
-npm.cmd run dev -- --host 127.0.0.1 --port 5174
+```bash
+cd web
+npm ci
+npm run build
 ```
 
-本地开发访问地址：
-
-- Web：`http://127.0.0.1:3000`
-- Admin：`http://127.0.0.1:5174/login`
-- API：`http://127.0.0.1:8000/health`
-
-## 常用命令
-
-### 查看日志
-
-```powershell
-docker compose -f deploy/docker/docker-compose.yml logs -f
+```bash
+cd admin
+npm ci
+npm run build
 ```
 
-### 停止服务
+## Security and deployment notes
 
-```powershell
-docker compose -f deploy/docker/docker-compose.yml down
-```
+- Never commit `.env`, backup environment files, certificates, access tokens, or production database exports.
+- Replace every `change-me-*` value before starting a shared or internet-facing environment.
+- Keep `TEST_AUTH_BRIDGE_ENABLED=false` outside isolated automated tests.
+- Use the mock payment provider for local demonstration only; connect a verified provider before accepting real payments.
+- Keep the admin console bound to `127.0.0.1` by default. Expose it only through a reviewed firewall, VPN, or private network.
+- Leave SSO, SMS, and trusted-data-space adapters disabled until their server-side credentials and certificate chain are configured.
+- Treat uploaded files and SQL backups as runtime data; they are ignored by Git.
 
-### 清空数据库并重置成演示数据
+## 中文说明
 
-```powershell
-docker compose -f deploy/docker/docker-compose.yml down -v
-docker compose -f deploy/docker/docker-compose.yml up -d --build
-```
+这是一个面向企业门户和运营后台的全栈案例项目，包含门户内容管理、会员体系、业务申请审核、资源市场、订单支付、预付费余额、钱包流水及第三方系统适配。公开版本只保留演示数据和关闭状态的集成接口，不包含真实密钥、客户数据或生产环境配置。
 
-## 相关文档
+本仓库主要用于展示完整业务系统的工程能力，包括前后端分离、复杂业务建模、权限边界、可测试的服务层、数据库升级和容器化交付。
 
-- [deployment-runbook.md](deployment-runbook.md)
-- [spec-kit-mvp.md](spec-kit-mvp.md)
-- [api-spec-mvp.md](api-spec-mvp.md)
-- [ui-to-cms-mapping.md](ui-to-cms-mapping.md)
-- [delivery-slices.md](delivery-slices.md)
+## License and reuse
+
+No open-source license is granted by default. The code is published for portfolio review. Contact the repository owner before copying, redistributing, or using it commercially.

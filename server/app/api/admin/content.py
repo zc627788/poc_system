@@ -1,15 +1,23 @@
 import json
 from datetime import datetime
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi.responses import FileResponse
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import decode_access_token, get_password_hash
+from app.models.admin_user import AdminUser
 from app.models.article import Article
 from app.models.article_category import ArticleCategory
 from app.models.banner import Banner
 from app.models.feedback import Feedback
+from app.models.opc_application import OpcApplication
+from app.models.opc_application_action_log import OpcApplicationActionLog
+from app.models.opc_application_material_file import OpcApplicationMaterialFile
+from app.models.opc_application_review_record import OpcApplicationReviewRecord
 from app.models.page_section import PageSection
 from app.models.resource_category import ResourceCategory
 from app.models.resource_item import ResourceItem
@@ -29,6 +37,14 @@ from app.schemas.content import (
     SiteSettingsUpdateRequest,
 )
 from app.services.auth import validate_password, validate_site_user_name
+from app.schemas.opc_application import (
+    OpcApplicationDetailResponse,
+    OpcApplicationExportResponse,
+    OpcApplicationListItemResponse,
+    OpcApplicationListResponse,
+    OpcApplicationReviewRequest,
+)
+
 
 
 def require_admin_auth(authorization: str | None = Header(default=None)) -> str:
@@ -257,11 +273,14 @@ def delete_page_section(item_id: int, db: Session = Depends(get_db)) -> ApiRespo
 @router.get("/resource-categories", response_model=ApiResponse[list[dict]])
 def list_resource_categories(
     resource_type: str | None = Query(default=None),
+    group_key: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> ApiResponse[list[dict]]:
     query = db.query(ResourceCategory)
     if resource_type:
         query = query.filter(ResourceCategory.resource_type == resource_type)
+    if group_key:
+        query = query.filter(ResourceCategory.group_key == group_key)
     items = query.order_by(ResourceCategory.sort_order.asc(), ResourceCategory.id.asc()).all()
     return ApiResponse(data=[_resource_category_to_dict(item) for item in items])
 
@@ -311,6 +330,7 @@ def delete_resource_category(item_id: int, db: Session = Depends(get_db)) -> Api
 def list_resource_items(
     resource_type: str | None = Query(default=None),
     category_code: str | None = Query(default=None),
+    group_key: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> ApiResponse[list[dict]]:
     query = db.query(ResourceItem).join(ResourceCategory)
@@ -318,6 +338,8 @@ def list_resource_items(
         query = query.filter(ResourceItem.resource_type == resource_type)
     if category_code:
         query = query.filter(ResourceCategory.code == category_code)
+    if group_key:
+        query = query.filter(ResourceCategory.group_key == group_key)
     items = query.order_by(ResourceCategory.sort_order.asc(), ResourceItem.sort_order.asc(), ResourceItem.id.asc()).all()
     return ApiResponse(data=[_resource_item_to_dict(item) for item in items])
 
@@ -342,8 +364,13 @@ def create_resource_item(payload: ResourceItemCreateRequest, db: Session = Depen
         status_text=payload.status_text,
         link_type=payload.link_type,
         link_value=payload.link_value,
+        primary_button_text=payload.primary_button_text,
+        secondary_link_type=payload.secondary_link_type,
+        secondary_link_value=payload.secondary_link_value,
+        secondary_button_text=payload.secondary_button_text,
         tags_json=payload.tags_json,
         meta_json=payload.meta_json,
+        show_on_home=payload.show_on_home,
         sort_order=payload.sort_order,
         is_published=payload.is_published,
     )
@@ -377,8 +404,13 @@ def update_resource_item(
     item.status_text = payload.status_text
     item.link_type = payload.link_type
     item.link_value = payload.link_value
+    item.primary_button_text = payload.primary_button_text
+    item.secondary_link_type = payload.secondary_link_type
+    item.secondary_link_value = payload.secondary_link_value
+    item.secondary_button_text = payload.secondary_button_text
     item.tags_json = payload.tags_json
     item.meta_json = payload.meta_json
+    item.show_on_home = payload.show_on_home
     item.sort_order = payload.sort_order
     item.is_published = payload.is_published
     db.commit()
@@ -576,9 +608,12 @@ def _resource_category_to_dict(item: ResourceCategory) -> dict:
         "group_key": item.group_key,
         "description": item.description,
         "icon": item.icon,
+        "image_url": item.image_url,
+        "display_template": item.display_template,
         "action_type": item.action_type,
         "action_value": item.action_value,
         "button_text": item.button_text,
+        "show_on_home": item.show_on_home,
         "sort_order": item.sort_order,
         "is_published": item.is_published,
     }
@@ -599,8 +634,13 @@ def _resource_item_to_dict(item: ResourceItem) -> dict:
         "status_text": item.status_text,
         "link_type": item.link_type,
         "link_value": item.link_value,
+        "primary_button_text": item.primary_button_text,
+        "secondary_link_type": item.secondary_link_type,
+        "secondary_link_value": item.secondary_link_value,
+        "secondary_button_text": item.secondary_button_text,
         "tags_json": item.tags_json,
         "meta_json": item.meta_json,
+        "show_on_home": item.show_on_home,
         "sort_order": item.sort_order,
         "is_published": item.is_published,
     }
@@ -610,7 +650,11 @@ def _site_user_to_dict(item: SiteUser) -> dict:
     return {
         "id": item.id,
         "name": item.name,
+        "real_name": item.real_name,
         "phone": item.phone,
+        "mobile_fuzzy": item.mobile_fuzzy,
+        "auth_source": item.auth_source,
+        "external_open_id": item.external_open_id,
         "status": item.status,
         "last_login_at": item.last_login_at.isoformat() if item.last_login_at else None,
         "created_at": item.created_at.isoformat(),

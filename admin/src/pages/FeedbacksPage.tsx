@@ -1,5 +1,5 @@
 import { MessageOutlined } from "@ant-design/icons";
-import { Alert, Button, Card, Form, Input, Modal, Select, Space, Table, Tag, message } from "antd";
+import { Button, Card, Form, Input, Modal, Select, Space, Table, Tag, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useEffect, useState } from "react";
 import { adminApi } from "../api";
@@ -98,47 +98,48 @@ export function FeedbacksPage() {
   };
 
   const columns: ColumnsType<FeedbackItem> = [
-    { title: "编号", dataIndex: "id", key: "id", width: 80 },
+    { title: "编号", dataIndex: "id", key: "id", width: 60 },
     {
       title: "提交人",
       dataIndex: "submitter_name",
       key: "submitter_name",
-      width: 140,
+      width: 80,
       render: (value?: string | null) => value || "-",
     },
-    { title: "主题", dataIndex: "subject", key: "subject", width: 220 },
+    { title: "主题", dataIndex: "subject", key: "subject", width: 150 },
     {
       title: "反馈内容",
       dataIndex: "content",
       key: "content",
-      ellipsis: true,
+      width: 200,
     },
-    { title: "联系电话", dataIndex: "phone", key: "phone", width: 140 },
+    { title: "联系电话", dataIndex: "phone", key: "phone", width: 120 },
     {
       title: "状态",
       dataIndex: "status",
       key: "status",
-      width: 110,
+      width: 60,
       render: (value: FeedbackItem["status"]) => <Tag color={statusTagColorMap[value]}>{statusLabelMap[value]}</Tag>,
     },
     {
       title: "提交时间",
       dataIndex: "created_at",
       key: "created_at",
-      width: 170,
+      width: 140,
       render: (value: string) => formatDateTime(value),
     },
     {
       title: "处理人",
       dataIndex: "handled_by",
       key: "handled_by",
-      width: 120,
+      width: 80,
       render: (value?: string | null) => value || "-",
     },
     {
       title: "操作",
       key: "actions",
-      width: 130,
+      width: 150,
+      fixed: "right",
       render: (_, record) => (
         <Button icon={<MessageOutlined />} onClick={() => openHandleModal(record)} type="link">
           处理反馈
@@ -171,13 +172,6 @@ export function FeedbacksPage() {
           </div>
         </div>
 
-        <Alert
-          description="阶段 5 反馈闭环说明：用户在前台提交后会写入数据库，运营在后台更新状态和回复。首版附件仅记录文件名称，不上传文件本体。"
-          message="处理提示"
-          showIcon
-          style={{ marginTop: 16 }}
-          type="info"
-        />
       </Card>
 
       <Card className="admin-page-card">
@@ -187,7 +181,8 @@ export function FeedbacksPage() {
           loading={loading}
           pagination={{ pageSize: 10 }}
           rowKey="id"
-          scroll={{ x: 1280 }}
+          scroll={{ x: 'max-content' }}
+          tableLayout="fixed"
         />
       </Card>
 

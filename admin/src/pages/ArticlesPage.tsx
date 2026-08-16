@@ -1,8 +1,8 @@
 import { DeleteOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
 import {
-  Alert,
   Button,
   Card,
+  DatePicker,
   Form,
   Input,
   InputNumber,
@@ -10,12 +10,15 @@ import {
   Popconfirm,
   Select,
   Space,
+  Switch,
   Table,
+  Tabs,
   Tag,
   message,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { useEffect, useState } from "react";
+import dayjs, { Dayjs } from "dayjs";
+import { useEffect, useMemo, useState } from "react";
 import { adminApi } from "../api";
 import type { ApiResponse, ArticleItem } from "../types";
 
@@ -23,12 +26,10 @@ type ArticleFormValues = {
   category_code: string;
   title: string;
   summary: string;
-  link_type: string;
   external_url?: string;
-  publish_at: string;
+  publish_at: Dayjs | null;
   source_name?: string;
-  is_top: number;
-  is_published: number;
+  is_published: boolean;
   sort_order: number;
 };
 
@@ -36,24 +37,45 @@ const categoryOptions = [
   { label: "活动通知", value: "activity" },
   { label: "政策文件", value: "policy" },
   { label: "文章信息", value: "article" },
-  { label: "申报通知", value: "notice" }
+  { label: "申报通知", value: "notice" },
 ];
 
 const defaultValues: ArticleFormValues = {
   category_code: "activity",
   title: "",
   summary: "",
-  link_type: "external",
   external_url: "",
-  publish_at: "2026-04-03T10:00:00",
+  publish_at: dayjs("2026-04-03 10:00:00"),
   source_name: "",
-  is_top: 0,
-  is_published: 1,
-  sort_order: 0
+  is_published: true,
+  sort_order: 0,
 };
 
 function formatDate(value: string) {
   return value.replace("T", " ").slice(0, 16);
+}
+
+function resolveLinkType(url?: string) {
+  if (!url) {
+    return "internal";
+  }
+
+  return /^https?:\/\//i.test(url) ? "external" : "internal";
+}
+
+function buildArticlePayload(values: ArticleFormValues) {
+  return {
+    category_code: values.category_code,
+    title: values.title,
+    summary: values.summary,
+    link_type: resolveLinkType(values.external_url),
+    external_url: values.external_url || "",
+    publish_at: (values.publish_at || dayjs()).format("YYYY-MM-DDTHH:mm:ss"),
+    source_name: values.source_name || "",
+    is_top: 0,
+    is_published: values.is_published ? 1 : 0,
+    sort_order: values.sort_order,
+  };
 }
 
 export function ArticlesPage() {
@@ -63,6 +85,7 @@ export function ArticlesPage() {
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ArticleItem | null>(null);
+  const [activeTab, setActiveTab] = useState("activity");
 
   const loadItems = async () => {
     setLoading(true);
@@ -81,9 +104,14 @@ export function ArticlesPage() {
     void loadItems();
   }, []);
 
+  const filteredItems = useMemo(
+    () => items.filter((item) => item.category.code === activeTab),
+    [activeTab, items]
+  );
+
   const openCreateModal = () => {
     setEditingItem(null);
-    form.setFieldsValue(defaultValues);
+    form.setFieldsValue({ ...defaultValues, category_code: activeTab });
     setOpen(true);
   };
 
@@ -93,13 +121,11 @@ export function ArticlesPage() {
       category_code: item.category.code,
       title: item.title,
       summary: item.summary,
-      link_type: item.link_type,
       external_url: item.external_url || "",
-      publish_at: item.publish_at.slice(0, 19),
+      publish_at: dayjs(item.publish_at),
       source_name: item.source_name || "",
-      is_top: item.is_top ? 1 : 0,
-      is_published: item.is_published,
-      sort_order: item.sort_order
+      is_published: item.is_published === 1,
+      sort_order: item.sort_order,
     });
     setOpen(true);
   };
@@ -123,11 +149,12 @@ export function ArticlesPage() {
   const handleSubmit = async (values: ArticleFormValues) => {
     setSaving(true);
     try {
+      const payload = buildArticlePayload(values);
       if (editingItem) {
-        await adminApi.put(`/admin/articles/${editingItem.id}`, values);
+        await adminApi.put(`/admin/articles/${editingItem.id}`, payload);
         message.success("资讯已更新");
       } else {
-        await adminApi.post("/admin/articles", values);
+        await adminApi.post("/admin/articles", payload);
         message.success("资讯已新增");
       }
       closeModal();
@@ -141,34 +168,22 @@ export function ArticlesPage() {
   };
 
   const columns: ColumnsType<ArticleItem> = [
-    { title: "标题", dataIndex: "title", key: "title", ellipsis: true },
-    {
-      title: "分类",
-      dataIndex: "category",
-      key: "category",
-      width: 120,
-      render: (value: ArticleItem["category"]) => <Tag color="blue">{value.name}</Tag>
-    },
-    { title: "来源", dataIndex: "source_name", key: "source_name", width: 140 },
-    { title: "发布时间", dataIndex: "publish_at", key: "publish_at", width: 170, render: formatDate },
-    {
-      title: "置顶",
-      dataIndex: "is_top",
-      key: "is_top",
-      width: 80,
-      render: (value: boolean) => (value ? <Tag color="gold">置顶</Tag> : <Tag>普通</Tag>)
-    },
+    { title: "标题", dataIndex: "title", key: "title", width: 260, fixed: "left", ellipsis: true },
+    { title: "来源", dataIndex: "source_name", key: "source_name", width: 120, render: (value?: string) => value || "-" },
+    { title: "发布时间", dataIndex: "publish_at", key: "publish_at", width: 160, render: formatDate },
+    { title: "排序", dataIndex: "sort_order", key: "sort_order", width: 80 },
     {
       title: "状态",
       dataIndex: "is_published",
       key: "is_published",
-      width: 100,
-      render: (value: number) => (value === 1 ? <Tag color="blue">已发布</Tag> : <Tag>草稿</Tag>)
+      width: 90,
+      render: (value: number) => (value === 1 ? <Tag color="blue">发布</Tag> : <Tag>草稿</Tag>),
     },
     {
       title: "操作",
       key: "actions",
       width: 140,
+      fixed: "right",
       render: (_, record) => (
         <Space>
           <Button icon={<EditOutlined />} onClick={() => openEditModal(record)} type="link">
@@ -180,26 +195,37 @@ export function ArticlesPage() {
             </Button>
           </Popconfirm>
         </Space>
-      )
-    }
+      ),
+    },
   ];
 
   return (
     <div className="admin-page">
       <Card className="admin-page-card">
-        <Alert
-          description="这里不仅控制首页“最新动态”摘要，也会直接作为最新动态完整页的列表数据源。前台会按分类读取并展示最新内容。"
-          message="前台映射"
-          showIcon
-          style={{ marginBottom: 16 }}
-          type="info"
-        />
-        <Button icon={<PlusOutlined />} onClick={openCreateModal} type="primary">
-          新增资讯
-        </Button>
+        <div className="admin-toolbar" style={{ maxWidth: 1200 }}>
+          <div>
+            <h2 style={{ marginTop: 0, marginBottom: 8 }}>最新动态</h2>
+            <p className="admin-muted" style={{ marginBottom: 0 }}>
+              这里维护“最新动态”列表内容，按活动通知、政策文件、文章信息、申报通知分别管理。
+            </p>
+          </div>
+          <Button icon={<PlusOutlined />} onClick={openCreateModal} type="primary">
+            新增资讯
+          </Button>
+        </div>
+
       </Card>
+
       <Card className="admin-page-card">
-        <Table columns={columns} dataSource={items} loading={loading} rowKey="id" />
+        <Tabs
+          activeKey={activeTab}
+          items={categoryOptions.map((item) => ({
+            key: item.value,
+            label: item.label,
+          }))}
+          onChange={setActiveTab}
+        />
+        <Table columns={columns} dataSource={filteredItems} loading={loading} rowKey="id" scroll={{ x: 980 }} />
       </Card>
 
       <Modal
@@ -216,7 +242,7 @@ export function ArticlesPage() {
           initialValues={defaultValues}
           layout="vertical"
           onFinish={handleSubmit}
-          requiredMark={false}
+          requiredMark
         >
           <Form.Item label="资讯分类" name="category_code" rules={[{ required: true, message: "请选择资讯分类" }]}>
             <Select options={categoryOptions} />
@@ -227,42 +253,26 @@ export function ArticlesPage() {
           <Form.Item label="摘要" name="summary">
             <Input.TextArea placeholder="请输入摘要文案" rows={4} />
           </Form.Item>
-          <Form.Item label="链接类型" name="link_type">
-            <Select
-              options={[
-                { label: "外部链接", value: "external" },
-                { label: "站内链接", value: "internal" }
-              ]}
-            />
-          </Form.Item>
           <Form.Item label="跳转地址" name="external_url">
-            <Input placeholder="https://..." />
+            <Input placeholder="可留空；外链填写 https://...，站内填写 /news" />
           </Form.Item>
-          <Form.Item label="发布时间" name="publish_at" rules={[{ required: true, message: "请输入发布时间" }]}>
-            <Input placeholder="格式：2026-04-03T10:00:00" />
+          <Form.Item label="发布时间" name="publish_at" rules={[{ required: true, message: "请选择发布时间" }]}>
+            <DatePicker format="YYYY-MM-DD HH:mm:ss" showTime style={{ width: "100%" }} />
           </Form.Item>
           <Form.Item label="来源" name="source_name">
             <Input placeholder="例如：微信公众号" />
           </Form.Item>
-          <Form.Item label="排序" name="sort_order">
+          <Form.Item extra="数字越小，排序越靠前。" label="排序" name="sort_order">
             <InputNumber min={0} style={{ width: "100%" }} />
           </Form.Item>
-          <Form.Item label="是否置顶" name="is_top">
-            <Select
-              options={[
-                { label: "普通", value: 0 },
-                { label: "置顶", value: 1 }
-              ]}
-            />
-          </Form.Item>
-          <Form.Item label="发布状态" name="is_published">
-            <Select
-              options={[
-                { label: "已发布", value: 1 },
-                { label: "草稿", value: 0 }
-              ]}
-            />
-          </Form.Item>
+          <div style={{ display: "flex", gap: 32, marginBottom: 24, marginTop: 8, flexWrap: "wrap" }}>
+            <div style={{ alignItems: "center", display: "flex", gap: 12 }}>
+              <span>是否发布</span>
+              <Form.Item name="is_published" noStyle valuePropName="checked">
+                <Switch checkedChildren="发布" unCheckedChildren="草稿" />
+              </Form.Item>
+            </div>
+          </div>
         </Form>
       </Modal>
     </div>

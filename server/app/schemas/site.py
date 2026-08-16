@@ -80,9 +80,12 @@ class ResourceCategoryResponse(BaseModel):
     group_key: str | None = None
     description: str
     icon: str | None = None
+    image_url: str | None = None
+    display_template: str
     action_type: str
     action_value: str | None = None
     button_text: str | None = None
+    show_on_home: int
     sort_order: int
 
 
@@ -100,9 +103,26 @@ class ResourceItemResponse(BaseModel):
     status_text: str | None = None
     link_type: str
     link_value: str | None = None
+    primary_button_text: str | None = None
+    secondary_link_type: str
+    secondary_link_value: str | None = None
+    secondary_button_text: str | None = None
     tags: list[str]
     meta: dict
+    show_on_home: int
     sort_order: int
+
+
+class HomeMarketplaceGroupResponse(BaseModel):
+    key: str
+    section: PageSectionResponse | None = None
+    categories: list[ResourceCategoryResponse]
+    items: list[ResourceItemResponse]
+
+
+class HomeMarketplaceSummaryResponse(BaseModel):
+    summary: PageSectionResponse | None = None
+    groups: list[HomeMarketplaceGroupResponse]
 
 
 class FeedbackSubmitRequest(BaseModel):

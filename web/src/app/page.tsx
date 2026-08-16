@@ -35,6 +35,7 @@ export default async function HomePage() {
       <HomePageView
         articlesByTab={homePageData.articlesByTab}
         banners={homePageData.banners}
+        marketplaceSummary={homePageData.marketplaceSummary}
         sections={homePageData.sections}
         serviceItems={homePageData.serviceItems}
       />

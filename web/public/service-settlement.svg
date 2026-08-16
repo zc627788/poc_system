@@ -1,0 +1,25 @@
+<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bg" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(31 29) rotate(51) scale(67)">
+      <stop stop-color="#F8FCFF"/>
+      <stop offset="1" stop-color="#EEF4FF"/>
+    </radialGradient>
+    <linearGradient id="roof" x1="25" y1="43" x2="49" y2="20" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7DD58D"/>
+      <stop offset="1" stop-color="#3CC97B"/>
+    </linearGradient>
+    <linearGradient id="wall" x1="31" y1="44" x2="55" y2="67" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EBFFF0"/>
+      <stop offset="1" stop-color="#FFFFFF"/>
+    </linearGradient>
+  </defs>
+  <circle cx="48" cy="48" r="48" fill="url(#bg)"/>
+  <ellipse cx="46" cy="71" rx="22" ry="7" fill="#DCE7FF"/>
+  <path d="M23 44L45 28L67 44L61 49L45 38L29 49L23 44Z" fill="url(#roof)"/>
+  <path d="M30 47L45 37L60 47V66C60 67.105 59.105 68 58 68H32C30.8954 68 30 67.105 30 66V47Z" fill="url(#wall)" stroke="#DDE8F8"/>
+  <rect x="42" y="52" width="9" height="16" rx="2" fill="#A7D8B2"/>
+  <path d="M30 47L45 57L60 47" stroke="#D6E3F8" stroke-width="2"/>
+  <circle cx="67" cy="56" r="9" fill="#FFFFFF" stroke="#DDE8F8"/>
+  <path d="M67 51V61" stroke="#B6C4E8" stroke-width="2" stroke-linecap="round"/>
+  <path d="M62 56H72" stroke="#B6C4E8" stroke-width="2" stroke-linecap="round"/>
+</svg>
