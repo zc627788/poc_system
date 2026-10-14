@@ -1,0 +1,10 @@
+{
+  "run_date": "2026-10-14",
+  "backend_tests_passed": 56,
+  "subtests_passed": 19,
+  "demo_products": 4,
+  "ui_created_product": "DEMO_UI_4",
+  "flow": "UI login -> 3 seeded products -> create product through UI -> reload -> 4 persisted products",
+  "storage": "isolated local SQLite; original API routes and services",
+  "limitations": "Synthetic product data, no real orders/revenue; no complete MySQL deployment, payment, SMS or SSO validation."
+}

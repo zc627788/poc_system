@@ -14,6 +14,27 @@ The project combines a Next.js public portal, a React administration application
 | Track prepaid usage | Balance, consumption imports, ledger and wallet services |
 | Hand over the system | Separate web/admin/API applications, SQL upgrades, Docker configuration and backend tests |
 
+## Verified product-management demo — 14 October 2026
+
+![Actual local product-management screen](docs/portfolio/products-live.png)
+
+The existing React admin was connected to the repository's original FastAPI authentication and product-management routes/services using an **isolated SQLite demo database**. Through the browser, we logged in, viewed three seeded sample products, created a fourth product, reloaded the page and confirmed that all four persisted. The data is explicitly fictional: these are functional records, **not customers, transactions or revenue**.
+
+Backend verification on the same checkout: **56 tests and 19 subtests passed** (dependency/deprecation warnings remain). See [verification data](docs/portfolio/product-verification.json).
+
+To reproduce this bounded module demo:
+
+```powershell
+# Terminal 1, after installing server requirements:
+python docs/portfolio/demo_api.py
+# Terminal 2:
+cd admin
+$env:VITE_API_BASE_URL="http://127.0.0.1:8211/api"
+npm run dev -- --host 127.0.0.1 --port 3211
+```
+
+Local demo credentials: `portfolio` / `PortfolioDemo2026`. Open `http://127.0.0.1:3211`, then **交易管理 → 商品管理**. The demo binds to loopback only. Other menu modules are outside this small demo; full MySQL deployment, payments, SMS and SSO were not exercised in this run.
+
 ## Screenshots
 
 ![Verified portfolio case study](docs/portfolio/demo.png)

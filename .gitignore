@@ -28,4 +28,5 @@ release_*/
 dev-smoke-*.json
 README.local.md
 readme-local.md
+docs/portfolio/demo.sqlite3
 tempagent.md
