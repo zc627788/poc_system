@@ -1,4 +1,4 @@
-# React + Python 业务门户与管理后台
+# OPC 业务门户与管理后台
 
 [English](README.md)
 

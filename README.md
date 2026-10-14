@@ -1,4 +1,4 @@
-# Business portal and admin dashboard
+# OPC — business portal and admin dashboard
 
 [中文说明](README.zh-CN.md)
 
